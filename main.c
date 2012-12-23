@@ -17,12 +17,10 @@ void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int t
 
 struct model model [2];    
 
-#define ATOM_FROM 44
-#define ATOM_TO   86
+int ATOM_FROM;
+int ATOM_TO;
 
 char *folder_name;
-
-
 
 
 char *Fn[MAXCOOR];
@@ -41,15 +39,17 @@ int main(int argc, char *argv[])
 	FILE *fi;
 	char *namei;
 
-    if (argc < 3) {
+    if (argc < 5) {
     	printf("Not enough parameters\n");
-    	printf("Usage: %s [pdblist] [folder]\n", "rmsd");
+    	printf("Usage: %s [pdblist] [folder] [atom from] [atom to]\n", "rmsd");
         exit(EXIT_FAILURE);	
     } 
     
  	namei = argv[1];
 	folder_name = argv[2];
 
+	ATOM_FROM = argv[3];
+	ATOM_TO   = argv[4];
 
 {
 	char *name_source = argv[1];
