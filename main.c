@@ -21,16 +21,24 @@ struct model model [2];
 
 char *folder_name;
 
+
+
+
+char *Fn[MAXCOOR];
+int N_files = 0;
+
+char buffer_names[MAXCOOR*100];
+char *endbuffer = buffer_names;
+
+
+
+
+
 int main(int argc, char *argv[])
 {
-	double rmsd, rmsd_start;
-	double p[NPARAM];
-	FILE *fi, *fb, *fo;
-	char *namei, *nameb, *nameo;
-
-	struct coordinates mdA, mdB;
- 	struct coordinates *pma;
-	struct coordinates *pmb;
+	double rmsd;
+	FILE *fi;
+	char *namei;
 
     if (argc < 2) {
     	printf("Not enough parameters\n");
@@ -39,26 +47,21 @@ int main(int argc, char *argv[])
     } 
     
  	namei = argv[1];
-//	nameb = argv[2];
-// 	nameo = argv[3];  
 
-folder_name = "/home/miguel/Dropbox/arg32/md/ATP_frames_ALA/";
+	folder_name = "/home/miguel/Dropbox/arg32/md/ATP_frames_ALA/";
+
+
+
 
 
 {
 	char *name_source = argv[1];
 	FILE *fs;
 	char name_line[1024];
-	char name_i[1024];
-	struct model model_input;
 
 	if (NULL != (fs = fopen(name_source, "r"))) {
 
-printf ("open: %s\n",name_source);
-
-		
-
-
+		printf ("open: %s\n",name_source);
 
 		while (fgets(name_line, 1024, fs)) {
 			char *j;
@@ -67,6 +70,49 @@ printf ("open: %s\n",name_source);
 			if (*j == '\0') continue;
 
 			name_line[strlen(name_line)-1] = '\0';
+
+
+			Fn[N_files++] = endbuffer;
+			strcpy(endbuffer,name_line);
+			endbuffer += strlen(name_line) + 1;
+
+		}
+
+		endbuffer = '\0';
+
+		{int i;
+		for (i = 0; i < N_files; i++) {
+			printf ("%s\n",Fn[i]);
+		}
+		}
+		fclose(fs);	
+	} else {
+		printf("problems with %s\n", name_source);
+	}
+
+	printf ("Files read=%d\n", N_coor);
+}
+
+//
+
+
+
+{
+	int i;
+	char *name_source = argv[1];
+	FILE *fs;
+	char *name_line;
+	char name_i[1024];
+	struct model model_input;
+
+	if (NULL != (fs = fopen(name_source, "r"))) {
+
+		printf ("open: %s\n",name_source);
+
+
+		
+		for (i = 0; i < N_files; i++) {
+			name_line = Fn[i];
 
 			name_i[0] = '\0';
 			strcpy(name_i, folder_name);
@@ -102,47 +148,6 @@ printf ("open: %s\n",name_source);
 
 	exit(0);
 }
-
-	if (NULL != (fi = fopen(namei, "r"))) {
- 		if (NULL != (fb = fopen(nameb, "r"))) {
- 			if (NULL != (fo = fopen(nameo, "w"))) { 		
-	 			int i;
-		 		struct transrot tr;
-           			
-     			modelload(fi, &model[0]);
-     			modelload(fb, &model[1]);
-   	
-				pma = &mdA;
-				pmb = &mdB;
-	
-        		mod2_ALLcoord (&model[0], &mdA, ATOM_FROM, ATOM_TO);
-     			mod2_ALLcoord (&model[1], &mdB, ATOM_FROM, ATOM_TO);
-
-     			for (i = 0; i < NPARAM; i++) p[i] = 0;
-
-				rmsd_start = sqrt(sqdev(pma, pmb, p));
-     			rmsd = fit (pma, pmb, &tr);
-
-     			model_transrot(&tr, &model[1]);
-     			fprintpdb(fo, &model[1]);             			
-
-				printf("starting RMSD: %.4lf\n",rmsd_start);
-				printf("  ending RMSD: %.4lf\n",rmsd);
-
-				fclose(fo);
-			} else {
-				printf("problems with %s\n", nameo);		
-   			}
-   			
-   			fclose(fb);
-   		} else {
-   			printf("problems with %s\n", nameb);
-     	}
-     	
-   	   	fclose(fi);
-   	} else {
-		printf("problems with %s\n", namei);
-    }
 
     return EXIT_SUCCESS;
 }
