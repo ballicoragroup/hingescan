@@ -251,7 +251,7 @@ void coor_rotate (const struct coordinates *ori, const struct rotdata *r, struct
 {
 	int d, i, k, j;
 	double v[NAXIS], w[NAXIS];
-	const double *v_ori;
+//	const double *v_ori;
 	double M[NAXIS][NAXIS];
 
   	for (i = 0; i < NAXIS; i++) 
@@ -291,7 +291,8 @@ extern void fit   (const struct coordinates *t,
 	const struct coordinates *pmbuf;
 	
 	double z, z0;
-	double scale, qfactor;
+	double scale;
+//	double qfactor;
 	int i;
 	
 	double ct[3], cm[3];
@@ -792,8 +793,10 @@ void do_transrot (const struct transrot *inp, double *io)
 {
 	double v[NAXIS+1];
 	double w[NAXIS+1];	
-	int i, j, k;
-	struct transrot a, b, c;
+	int i;
+//	int j;
+	int k;
+//	struct transrot a, b, c;
 	int WIDTH = NAXIS + 1;
 
 	for (i = 0; i < NAXIS; i++) {
@@ -837,7 +840,7 @@ void transrotcpy (const struct transrot *inp, struct transrot *out)
 void showrot (const struct rotdata *inp)
 {
 	int i, j;
-	int WIDTH = NAXIS + 1;
+//	int WIDTH = NAXIS + 1;
 
     for (i = 0; i < NAXIS; i++) {
        		for (j = 0; j < NAXIS; j++ ) {
