@@ -48,8 +48,12 @@ int main(int argc, char *argv[])
  	namei = argv[1];
 	folder_name = argv[2];
 
-	ATOM_FROM = argv[3];
-	ATOM_TO   = argv[4];
+	if (	1!=sscanf (argv[3],"%d",&ATOM_FROM)
+		||	1!=sscanf (argv[4],"%d",&ATOM_TO)
+		) {
+		fprintf(stderr, "Error in input parameters\n");
+		exit(EXIT_FAILURE);
+	}
 
 {
 	char *name_source = argv[1];
