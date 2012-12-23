@@ -282,8 +282,8 @@ void coor_rotate (const struct coordinates *ori, const struct rotdata *r, struct
 }
 
 
-extern void fit   (const struct coordinates *t, 
-			const struct coordinates *m, struct transrot *out)
+extern double
+fit (const struct coordinates *t, const struct coordinates *m, struct transrot *out)
 {	
 	double p[NPARAM] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 	
@@ -354,7 +354,7 @@ extern void fit   (const struct coordinates *t,
 	}	
 	
 #endif
-	printf("  ending RMSD: %.4lf\n",sqrt(z));
+//	printf("  ending RMSD: %.4lf\n",sqrt(z));
 
 	getrotation (p, &r);
 	get_transrot (&r, &tr);
@@ -368,7 +368,9 @@ extern void fit   (const struct coordinates *t,
 	compose_r_t(&tr, cm);
 	compose_t_r(ct, &tr);
 	/*showtransrot(&tr);*/
-	transrotcpy (&tr, out);        	
+	transrotcpy (&tr, out);
+
+	return sqrt(z);
 }
 
 

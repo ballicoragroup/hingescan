@@ -17,7 +17,7 @@ struct model model [2];
 
 int main(int argc, char *argv[])
 {
-
+	double rmsd, rmsd_start;
 	double p[NPARAM];
 	FILE *fi, *fb, *fo;
 	char *namei, *nameb, *nameo;
@@ -53,15 +53,18 @@ int main(int argc, char *argv[])
 
      			for (i = 0; i < NPARAM; i++) p[i] = 0;
 
-				printf("starting RMSD: %.4lf\n",sqrt(sqdev(pma, pmb, p)));
-     			fit   (pma, pmb, &tr);
- 			
+				rmsd_start = sqrt(sqdev(pma, pmb, p));
+     			rmsd = fit (pma, pmb, &tr);
+
      			model_transrot(&tr, &model[1]);
      			fprintpdb(fo, &model[1]);             			
-				fclose(fo);
 
+				printf("starting RMSD: %.4lf\n",rmsd_start);
+				printf("  ending RMSD: %.4lf\n",rmsd);
+
+				fclose(fo);
 			} else {
-				printf("problems with %s\n", nameo);			
+				printf("problems with %s\n", nameo);		
    			}
    			
    			fclose(fb);

@@ -26,12 +26,10 @@ extern void masscenter(const struct coordinates *tp, double *c);
 extern double sqdev(const struct coordinates *tp, 
 					const struct coordinates *mb, 
      				const double *p);
-/*
-extern void fit(	const struct coordinates *t, 
-					const struct coordinates *m, 
-     				struct rotdata *r);*/
-extern void fit   (const struct coordinates *t, 
-			const struct coordinates *m, struct transrot *out);
+
+extern double fit	( const struct coordinates *t
+					, const struct coordinates *m
+					, struct transrot *out);
 
 void do_transrot (const struct transrot *inp, double *io);     				
      				
