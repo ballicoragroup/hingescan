@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 #include "bool.h"
 #include "pdb.h"
 #include "fit.h"
@@ -16,8 +17,8 @@ void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int t
 
 struct model model [2];    
 
-#define ATOM_FROM  1
-#define ATOM_TO   43
+#define ATOM_FROM 44
+#define ATOM_TO   86
 
 char *folder_name;
 
@@ -40,18 +41,14 @@ int main(int argc, char *argv[])
 	FILE *fi;
 	char *namei;
 
-    if (argc < 2) {
+    if (argc < 3) {
     	printf("Not enough parameters\n");
-    	printf("Usage: %s [pdbfile1] [pdbfile2]\n", "rmsd");
+    	printf("Usage: %s [pdblist] [folder]\n", "rmsd");
         exit(EXIT_FAILURE);	
     } 
     
  	namei = argv[1];
-
-	folder_name = "/home/miguel/Dropbox/arg32/md/ATP_frames_ALA/";
-
-
-
+	folder_name = argv[2];
 
 
 {
@@ -66,17 +63,18 @@ int main(int argc, char *argv[])
 		while (fgets(name_line, 1024, fs)) {
 			char *j;
 			//FIXME trim  blanks and spaces
-			for (j = name_line; *j && isspace(*j); j++) {;}
-			if (*j == '\0') continue;
-
 			name_line[strlen(name_line)-1] = '\0';
-
-
+			for (j = name_line; *j && isspace(*j); j++) {;}
+			if (*j == '\0') {
+				continue;
+			}
 			Fn[N_files++] = endbuffer;
 			strcpy(endbuffer,name_line);
 			endbuffer += strlen(name_line) + 1;
 
 		}
+
+
 
 		endbuffer = '\0';
 
@@ -119,12 +117,19 @@ int main(int argc, char *argv[])
 			strcat(name_i, name_line);
 
 			if (NULL != (fi = fopen(name_i, "r"))) {
-				struct coordinates *pma = &Coor[N_coor++];
+				struct coordinates *pma = &Coor[N_coor];
 
-				printf ("read: %s\n",name_i);
+				//printf ("read: %s\n",name_i);
 
 				modelload(fi, &model_input);
 				mod2_ALLcoord (&model_input, pma, ATOM_FROM, ATOM_TO);
+
+				if (pma->n == 0) {
+					printf ("Warning: File %s could be empty\n", name_i);
+				} else {
+					N_coor++;
+				}
+
 				fclose(fi);
 			} else {
 				printf("problems with %s\n", namei);
@@ -142,11 +147,10 @@ int main(int argc, char *argv[])
 	int i;
 	struct transrot tr;
 	for (i = 1; i < N_coor; i++) {
+		assert (Coor[i].n > 0);
 		rmsd = fit (&Coor[0], &Coor[i], &tr);
 		printf("RMSD [%d,%d]: %.4lf\n",0,i,rmsd);
 	}
-
-	exit(0);
 }
 
     return EXIT_SUCCESS;
