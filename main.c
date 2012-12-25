@@ -82,11 +82,8 @@ int main(int argc, char *argv[])
 
 		endbuffer = '\0';
 
-		{int i;
-		for (i = 0; i < N_files; i++) {
-			printf ("%s\n",Fn[i]);
-		}
-		}
+		// {int i;	for (i = 0; i < N_files; i++) {printf ("%s\n",Fn[i]);}}
+
 		fclose(fs);	
 	} else {
 		printf("problems with %s\n", name_source);
@@ -129,7 +126,7 @@ int main(int argc, char *argv[])
 				mod2_ALLcoord (&model_input, pma, ATOM_FROM, ATOM_TO);
 
 				if (pma->n == 0) {
-					printf ("Warning: File %s could be empty\n", name_i);
+					fprintf (stderr, "Warning: File %s could be empty\n", name_i);
 				} else {
 					N_coor++;
 				}
@@ -150,10 +147,35 @@ int main(int argc, char *argv[])
 {
 	int i;
 	struct transrot tr;
-	for (i = 1; i < N_coor; i++) {
+	for (i = 0; i < N_coor; i++) {
 		assert (Coor[i].n > 0);
 		rmsd = fit (&Coor[0], &Coor[i], &tr);
-		printf("RMSD [%d,%d]: %.4lf\n",0,i,rmsd);
+//		printf("RMSD [%d,%d]: %.4lf\n",0,i,rmsd);
+	}
+}
+
+{
+	FILE *ofile;
+	int i,j,n;
+	struct transrot tr;
+	n = N_coor; 
+
+	if (NULL != (ofile = fopen("infile", "w"))) {
+
+		fprintf(ofile,"%d\n",n);
+		for (i = 0; i < n; i++) {
+
+			fprintf (stderr,"reference: %d\n",i);
+			fprintf(ofile, "%-10d",i);
+	
+			for (j = 0; j < n; j++) {
+				assert (Coor[i].n > 0 && Coor[j].n);
+				rmsd = fit (&Coor[i], &Coor[j], &tr);
+				fprintf(ofile," %.4lf",rmsd);
+			}
+			fprintf(ofile,"\n");
+		}
+		fclose(ofile);
 	}
 }
 
