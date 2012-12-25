@@ -83,14 +83,25 @@ coord_collect	( char *folder
 				, char *prefix
 				, struct coordinates_set *cs);
 
+static int
+triangle_key(int i, int j, int side_size)
+{
+	int waste, key;
+	assert ( j >= i);
+	waste = i * (i+1) / 2;
+	key   = i * side_size + j;
+	return key - waste;
+};
 
 int main(int argc, char *argv[])
 {
 	double rmsd;
+	double *rbuf;
+	int r;
 
     if (argc < 4) {
     	printf("Not enough parameters\n");
-    	printf("Usage: %s [pdblist] [atom from] [atom to]\n", "rmsd");
+    	printf("Usage: %s [atom from] [atom to] [pdblist] [pdblist]\n", "rmsd");
         exit(EXIT_FAILURE);	
     } 
     
@@ -100,19 +111,15 @@ Coor_set.n = 0;
 
 Endbuffer = Buffer_names;
 
-	if (	1!=sscanf (argv[2],"%d",&ATOM_FROM)
-		||	1!=sscanf (argv[3],"%d",&ATOM_TO)
+	if (	1!=sscanf (argv[1],"%d",&ATOM_FROM)
+		||	1!=sscanf (argv[2],"%d",&ATOM_TO)
 		) {
 		fprintf(stderr, "Error in input parameters\n");
 		exit(EXIT_FAILURE);
 	}
 
-{
-	char *name_source;
 
-	name_source = argv[1];
-
-	Endbuffer = process_setfile	( name_source
+	Endbuffer = process_setfile	( argv[3]
 								, Folder_line
 								, Fn
 								, MAXCOOR
@@ -123,26 +130,49 @@ Endbuffer = Buffer_names;
 	Folder_name = Folder_line;
 
 	printf ("File names read=%d\n", N_files);
-}
-
 	assert(Endbuffer);
-
 
 	coord_collect	( Folder_name
 					, Fn
 					, N_files
 					, ATOM_FROM
 					, ATOM_TO
-					, "BA"
+					, "A"
+					, &Coor_set);
+//
+
+	Endbuffer = process_setfile	( argv[4]
+								, Folder_line
+								, Fn
+								, MAXCOOR
+								, &N_files
+								, Endbuffer
+								);
+
+	Folder_name = Folder_line;
+
+	printf ("File names read=%d\n", N_files);
+	assert(Endbuffer);
+
+	coord_collect	( Folder_name
+					, Fn
+					, N_files
+					, ATOM_FROM
+					, ATOM_TO
+					, "B"
 					, &Coor_set);
 
+r = 0;
+rbuf = malloc (sizeof(double) * Coor_set.n * Coor_set.n);
 
-{
+if (rbuf) {
+
 	FILE *ofile;
 	int i,j,n;
 	struct transrot tr;
 	n = Coor_set.n; 
-	char oname[1204] = "infile";
+	char buffname [1024] = "infile";
+	char *oname = buffname;
 
 	if (NULL != (ofile = fopen(oname, "w"))) {
 
@@ -155,6 +185,11 @@ Endbuffer = Buffer_names;
 			for (j = 0; j < n; j++) {
 				assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n);
 				rmsd = fit (&Coor_set.coor[i], &Coor_set.coor[j], &tr);
+
+if (j >= i) {
+	assert (r == triangle_key(i,j,n));
+	rbuf[r++] = rmsd;
+}
 				fprintf(ofile," %.4lf",rmsd);
 			}
 			fprintf(ofile,"\n");
@@ -164,10 +199,78 @@ Endbuffer = Buffer_names;
 			printf("problems opening %s\n", oname);
 			exit(EXIT_FAILURE);
 	}
+
+
+
+
+
+
+
+	oname = "debug";
+
+	if (NULL != (ofile = fopen(oname, "w"))) {
+
+		fprintf(ofile,"%d\n",n);
+		for (i = 0; i < n; i++) {
+
+//			fprintf (stderr,"reference: %d\n",i);
+			fprintf(ofile, "%-10s",Coor_set.label[i]);
+	
+			for (j = 0; j < n; j++) {
+				assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n);
+				//rmsd = fit (&Coor_set.coor[i], &Coor_set.coor[j], &tr);
+
+rmsd = rbuf [triangle_key(i<j?i:j,  i<j?j:i, n)];
+
+				fprintf(ofile," %.4lf",rmsd);
+			}
+			fprintf(ofile,"\n");
+		}
+		fclose(ofile);
+	} else {
+			printf("problems opening %s\n", oname);
+			exit(EXIT_FAILURE);
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	free(rbuf);
+
+} else {
+	fprintf(stderr, "memory not enough\n");
+	exit(EXIT_FAILURE);
 }
 
     return EXIT_SUCCESS;
 }
+
+//----------------------------------------------------------------------------
 
 static void
 coord_collect	( char *folder
