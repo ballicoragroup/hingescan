@@ -162,110 +162,58 @@ Endbuffer = Buffer_names;
 					, "B"
 					, &Coor_set);
 
-r = 0;
-rbuf = malloc (sizeof(double) * Coor_set.n * Coor_set.n);
+	r = 0;
+	rbuf = malloc (sizeof(double) * Coor_set.n * Coor_set.n);
 
-if (rbuf) {
+	if (rbuf) {
 
-	FILE *ofile;
-	int i,j,n;
-	struct transrot tr;
-	n = Coor_set.n; 
-	char buffname [1024] = "infile";
-	char *oname = buffname;
-
-	if (NULL != (ofile = fopen(oname, "w"))) {
-
-		fprintf(ofile,"%d\n",n);
+		FILE *ofile;
+		int i,j,n;
+		struct transrot tr;
+		n = Coor_set.n; 
+		char buffname [1024] = "infile";
+		char *oname = buffname;
+	
+		// calculation, store in triangular buffer
 		for (i = 0; i < n; i++) {
 
 			fprintf (stderr,"reference: %d\n",i);
-			fprintf(ofile, "%-10s",Coor_set.label[i]);
 	
-			for (j = 0; j < n; j++) {
-				assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n);
+			for (j = i; j < n; j++) {
+				assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n > 0);
+				assert (j >= i);
+				assert (r == triangle_key(i,j,n));
 				rmsd = fit (&Coor_set.coor[i], &Coor_set.coor[j], &tr);
-
-if (j >= i) {
-	assert (r == triangle_key(i,j,n));
-	rbuf[r++] = rmsd;
-}
-				fprintf(ofile," %.4lf",rmsd);
+				rbuf[r++] = rmsd;
 			}
-			fprintf(ofile,"\n");
 		}
-		fclose(ofile);
-	} else {
-			printf("problems opening %s\n", oname);
-			exit(EXIT_FAILURE);
-	}
 
+		if (NULL != (ofile = fopen(oname, "w"))) {
 
+			fprintf(ofile,"%d\n",n);
+			for (i = 0; i < n; i++) {
 
-
-
-
-
-	oname = "debug";
-
-	if (NULL != (ofile = fopen(oname, "w"))) {
-
-		fprintf(ofile,"%d\n",n);
-		for (i = 0; i < n; i++) {
-
-//			fprintf (stderr,"reference: %d\n",i);
-			fprintf(ofile, "%-10s",Coor_set.label[i]);
-	
-			for (j = 0; j < n; j++) {
-				assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n);
-				//rmsd = fit (&Coor_set.coor[i], &Coor_set.coor[j], &tr);
-
-rmsd = rbuf [triangle_key(i<j?i:j,  i<j?j:i, n)];
-
-				fprintf(ofile," %.4lf",rmsd);
+				fprintf(ofile, "%-10s",Coor_set.label[i]);
+		
+				for (j = 0; j < n; j++) {
+					assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n);
+					rmsd = rbuf [triangle_key(i<j?i:j,  i<j?j:i, n)];
+					fprintf(ofile," %.4lf",rmsd);
+				}
+				fprintf(ofile,"\n");
 			}
-			fprintf(ofile,"\n");
+			fclose(ofile);
+		} else {
+				printf("problems opening %s\n", oname);
+				exit(EXIT_FAILURE);
 		}
-		fclose(ofile);
+
+		free(rbuf);
+
 	} else {
-			printf("problems opening %s\n", oname);
-			exit(EXIT_FAILURE);
+		fprintf(stderr, "memory not enough\n");
+		exit(EXIT_FAILURE);
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	free(rbuf);
-
-} else {
-	fprintf(stderr, "memory not enough\n");
-	exit(EXIT_FAILURE);
-}
 
     return EXIT_SUCCESS;
 }
