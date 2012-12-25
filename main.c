@@ -24,11 +24,15 @@ char Folder_line[1024];
 char *Folder_name;
 
 
-char *Fn[MAXCOOR];
+char *Fn[MAXCOOR]; // File names
+char *Ln[MAXCOOR]; // Label names
 int N_files = 0;
 
 char buffer_names[MAXCOOR*100];
 char *endbuffer = buffer_names;
+
+char buffer_labels[MAXCOOR*100];
+char *endlabels = buffer_labels;
 
 
 static char *trimCRLF (char *x)
@@ -71,50 +75,6 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-#if 0
-{
-	char *name_source = argv[1];
-	FILE *fs;
-	char name_line[1024];
-
-
-	if (NULL != (fs = fopen(name_source, "r"))) {
-
-		printf ("open: %s\n",name_source);
-
-		if (fgets(folder_line, 1024, fs)) {
-			trimCRLF(folder_line);
-			folder_name	= folder_line;
-
-			printf ("folder_name=%s\n",folder_name);
-
-			while (fgets(name_line, 1024, fs)) {
-				char *j;
-				trimCRLF(name_line);
-				for (j = name_line; *j && isspace(*j); j++) {;}
-				if (*j == '\0') {
-					continue;
-				}
-				Fn[N_files++] = endbuffer;
-				strcpy(endbuffer,name_line);
-				endbuffer += strlen(name_line) + 1;
-
-			}
-
-			endbuffer = '\0';
-
-		}
-		// {int i;	for (i = 0; i < N_files; i++) {printf ("%s\n",Fn[i]);}}
-
-		fclose(fs);	
-	} else {
-		printf("problems with %s\n", name_source);
-	}
-
-	printf ("File names read=%d\n", N_files);
-}
-#endif
-
 {
 	char *name_source;
 
@@ -131,10 +91,7 @@ int main(int argc, char *argv[])
 	Folder_name = Folder_line;
 
 	printf ("File names read=%d\n", N_files);
-
-
 }
-//
 
 {
 	int i;
@@ -159,12 +116,22 @@ int main(int argc, char *argv[])
 			if (pma->n == 0) {
 				fprintf (stderr, "Warning: File %s could be empty\n", name_i);
 			} else {
+
+				// make a label for this file
+				Ln[N_coor] = endlabels;
+				strcpy(endlabels,"label_");
+				endlabels += strlen("label_");
+				strcpy(endlabels,name_line);
+				endlabels += strlen(name_line);
+				endlabels += 1;
+
 				N_coor++;
 			}
 
 			fclose(fi);
 		} else {
 			printf("problems with %s\n", namei);
+			exit(EXIT_FAILURE);
 		}
 	}
 
@@ -195,7 +162,7 @@ int main(int argc, char *argv[])
 		for (i = 0; i < n; i++) {
 
 			fprintf (stderr,"reference: %d\n",i);
-			fprintf(ofile, "%-10d",i);
+			fprintf(ofile, "%-10s",Ln[i]);
 	
 			for (j = 0; j < n; j++) {
 				assert (Coor[i].n > 0 && Coor[j].n);
@@ -282,6 +249,10 @@ process_setfile	( const char *name_source
 				if (*j == '\0') {
 					continue;
 				}
+				if (name_line[strlen(name_line)-1] == '~') {
+					printf ("Ignored=%s\n",name_line);
+					continue;
+				}
 				fnam[N_fnam++] = endbuffer;
 				strcpy(endbuffer,name_line);
 				endbuffer += strlen(name_line) + 1;
@@ -291,17 +262,13 @@ process_setfile	( const char *name_source
 			endbuffer = '\0';
 
 		}
-		// {int i;	for (i = 0; i < N_fnam; i++) {printf ("%s\n",fnam[i]);}}
-
 		fclose(fs);	
 	} else {
 		printf("problems with %s\n", name_source);
+		exit(EXIT_FAILURE);
 	}
 
-	printf ("File names read=%d\n", N_fnam);
-
 	*fnam_n = N_fnam;
-
 	return endbuffer;
 }
 
