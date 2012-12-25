@@ -20,7 +20,8 @@ struct model model [2];
 int ATOM_FROM;
 int ATOM_TO;
 
-char *folder_name;
+char Folder_line[1024];
+char *Folder_name;
 
 
 char *Fn[MAXCOOR];
@@ -30,8 +31,23 @@ char buffer_names[MAXCOOR*100];
 char *endbuffer = buffer_names;
 
 
+static char *trimCRLF (char *x)
+{
+	size_t y = strlen(x)-1;
+	x [y] = '\0';		
+	return x;
+}
 
+//=================================================
 
+static char *
+process_setfile	( const char *name_source
+				, /*@OUT@*/	char *infolder
+				, char *fnam[]
+				, int maxcoor
+				, int *fnam_n
+				, char *endbuffer
+				);
 
 int main(int argc, char *argv[])
 {
@@ -39,49 +55,55 @@ int main(int argc, char *argv[])
 	FILE *fi;
 	char *namei;
 
-    if (argc < 5) {
+    if (argc < 4) {
     	printf("Not enough parameters\n");
-    	printf("Usage: %s [pdblist] [folder] [atom from] [atom to]\n", "rmsd");
+    	printf("Usage: %s [pdblist] [atom from] [atom to]\n", "rmsd");
         exit(EXIT_FAILURE);	
     } 
     
  	namei = argv[1];
-	folder_name = argv[2];
+	Folder_name = "";
 
-	if (	1!=sscanf (argv[3],"%d",&ATOM_FROM)
-		||	1!=sscanf (argv[4],"%d",&ATOM_TO)
+	if (	1!=sscanf (argv[2],"%d",&ATOM_FROM)
+		||	1!=sscanf (argv[3],"%d",&ATOM_TO)
 		) {
 		fprintf(stderr, "Error in input parameters\n");
 		exit(EXIT_FAILURE);
 	}
 
+#if 0
 {
 	char *name_source = argv[1];
 	FILE *fs;
 	char name_line[1024];
 
+
 	if (NULL != (fs = fopen(name_source, "r"))) {
 
 		printf ("open: %s\n",name_source);
 
-		while (fgets(name_line, 1024, fs)) {
-			char *j;
-			//FIXME trim  blanks and spaces
-			name_line[strlen(name_line)-1] = '\0';
-			for (j = name_line; *j && isspace(*j); j++) {;}
-			if (*j == '\0') {
-				continue;
+		if (fgets(folder_line, 1024, fs)) {
+			trimCRLF(folder_line);
+			folder_name	= folder_line;
+
+			printf ("folder_name=%s\n",folder_name);
+
+			while (fgets(name_line, 1024, fs)) {
+				char *j;
+				trimCRLF(name_line);
+				for (j = name_line; *j && isspace(*j); j++) {;}
+				if (*j == '\0') {
+					continue;
+				}
+				Fn[N_files++] = endbuffer;
+				strcpy(endbuffer,name_line);
+				endbuffer += strlen(name_line) + 1;
+
 			}
-			Fn[N_files++] = endbuffer;
-			strcpy(endbuffer,name_line);
-			endbuffer += strlen(name_line) + 1;
+
+			endbuffer = '\0';
 
 		}
-
-
-
-		endbuffer = '\0';
-
 		// {int i;	for (i = 0; i < N_files; i++) {printf ("%s\n",Fn[i]);}}
 
 		fclose(fs);	
@@ -89,56 +111,61 @@ int main(int argc, char *argv[])
 		printf("problems with %s\n", name_source);
 	}
 
-	printf ("Files read=%d\n", N_coor);
+	printf ("File names read=%d\n", N_files);
 }
+#endif
 
+{
+	char *name_source;
+
+	name_source = argv[1];
+
+	endbuffer = process_setfile	( name_source
+								, Folder_line
+								, Fn
+								, MAXCOOR
+								, &N_files
+								, endbuffer
+								);
+
+	Folder_name = Folder_line;
+
+	printf ("File names read=%d\n", N_files);
+
+
+}
 //
-
-
 
 {
 	int i;
-	char *name_source = argv[1];
-	FILE *fs;
 	char *name_line;
 	char name_i[1024];
 	struct model model_input;
 
-	if (NULL != (fs = fopen(name_source, "r"))) {
-
-		printf ("open: %s\n",name_source);
-
-
 		
-		for (i = 0; i < N_files; i++) {
-			name_line = Fn[i];
+	for (i = 0; i < N_files; i++) {
+		name_line = Fn[i];
 
-			name_i[0] = '\0';
-			strcpy(name_i, folder_name);
-			strcat(name_i, name_line);
+		name_i[0] = '\0';
+		strcpy(name_i, Folder_name);
+		strcat(name_i, name_line);
 
-			if (NULL != (fi = fopen(name_i, "r"))) {
-				struct coordinates *pma = &Coor[N_coor];
+		if (NULL != (fi = fopen(name_i, "r"))) {
+			struct coordinates *pma = &Coor[N_coor];
 
-				//printf ("read: %s\n",name_i);
+			modelload(fi, &model_input);
+			mod2_ALLcoord (&model_input, pma, ATOM_FROM, ATOM_TO);
 
-				modelload(fi, &model_input);
-				mod2_ALLcoord (&model_input, pma, ATOM_FROM, ATOM_TO);
-
-				if (pma->n == 0) {
-					fprintf (stderr, "Warning: File %s could be empty\n", name_i);
-				} else {
-					N_coor++;
-				}
-
-				fclose(fi);
+			if (pma->n == 0) {
+				fprintf (stderr, "Warning: File %s could be empty\n", name_i);
 			} else {
-				printf("problems with %s\n", namei);
+				N_coor++;
 			}
+
+			fclose(fi);
+		} else {
+			printf("problems with %s\n", namei);
 		}
-		fclose(fs);	
-	} else {
-		printf("problems with %s\n", name_source);
 	}
 
 	printf ("Files read=%d\n", N_coor);
@@ -150,9 +177,11 @@ int main(int argc, char *argv[])
 	for (i = 0; i < N_coor; i++) {
 		assert (Coor[i].n > 0);
 		rmsd = fit (&Coor[0], &Coor[i], &tr);
-//		printf("RMSD [%d,%d]: %.4lf\n",0,i,rmsd);
+		//printf("RMSD [%d,%d]: %.4lf\n",0,i,rmsd);
 	}
 }
+
+
 
 {
 	FILE *ofile;
@@ -222,6 +251,58 @@ void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int t
 	
  	}
  	c->n = j;
+}
+
+//==================================================================================
+
+static char *
+process_setfile	( const char *name_source
+				, /*@OUT@*/	char *infolder
+				, char *fnam[]
+				, int maxcoor
+				, int *fnam_n
+				, char *endbuffer
+				)
+{
+	FILE *fs;
+	char name_line[1024];
+	int N_fnam = 0;
+
+	if (NULL != (fs = fopen(name_source, "r"))) {
+
+		printf ("open: %s\n",name_source);
+
+		if (fgets(infolder, 1024, fs)) {
+			trimCRLF(infolder);
+
+			while (N_fnam < maxcoor && fgets(name_line, 1024, fs)) {
+				char *j;
+				trimCRLF(name_line);
+				for (j = name_line; *j && isspace(*j); j++) {;}
+				if (*j == '\0') {
+					continue;
+				}
+				fnam[N_fnam++] = endbuffer;
+				strcpy(endbuffer,name_line);
+				endbuffer += strlen(name_line) + 1;
+
+			}
+
+			endbuffer = '\0';
+
+		}
+		// {int i;	for (i = 0; i < N_fnam; i++) {printf ("%s\n",fnam[i]);}}
+
+		fclose(fs);	
+	} else {
+		printf("problems with %s\n", name_source);
+	}
+
+	printf ("File names read=%d\n", N_fnam);
+
+	*fnam_n = N_fnam;
+
+	return endbuffer;
 }
 
 
