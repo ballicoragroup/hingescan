@@ -9,13 +9,22 @@
 #include <math.h>
 
 #define MAXCOOR 10000
-struct coordinates Coor[MAXCOOR];
-int N_coor = 0;
+
+struct coordinates_set {
+	struct coordinates coor[MAXCOOR];
+	char *label[MAXCOOR]; // Label names
+	int n;
+
+};
+
+struct coordinates_set Coor_set;
+
+//--------------------------------------------------------------------
 
 void mod2_CAcoord(const struct model *m, struct coordinates *c);
 void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int to);
 
-struct model model [2];    
+//struct model model [2];    
 
 int ATOM_FROM;
 int ATOM_TO;
@@ -25,21 +34,33 @@ char *Folder_name;
 
 
 char *Fn[MAXCOOR]; // File names
-char *Ln[MAXCOOR]; // Label names
 int N_files = 0;
 
-char buffer_names[MAXCOOR*100];
-char *endbuffer = buffer_names;
+char Buffer_names[MAXCOOR*100];
+char *Endbuffer = Buffer_names;
 
-char buffer_labels[MAXCOOR*100];
-char *endlabels = buffer_labels;
-
+//=================================================
 
 static char *trimCRLF (char *x)
 {
 	size_t y = strlen(x)-1;
 	x [y] = '\0';		
 	return x;
+}
+
+static char *
+make_label_alloc(char *prefix, char *name)
+{
+	char *ori = Endbuffer;
+
+	assert(Endbuffer && prefix && name);
+
+	strcpy(Endbuffer,prefix);
+	Endbuffer += strlen(prefix);
+	strcpy(Endbuffer,name);
+	Endbuffer += strlen(name);
+	Endbuffer += 1;
+	return ori;
 }
 
 //=================================================
@@ -53,11 +74,19 @@ process_setfile	( const char *name_source
 				, char *endbuffer
 				);
 
+static void
+coord_collect	( char *folder
+				, char *inputfiles[]
+				, int n_input
+				, int atom_from
+				, int atom_to
+				, char *prefix
+				, struct coordinates_set *cs);
+
+
 int main(int argc, char *argv[])
 {
 	double rmsd;
-	FILE *fi;
-	char *namei;
 
     if (argc < 4) {
     	printf("Not enough parameters\n");
@@ -65,8 +94,11 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);	
     } 
     
- 	namei = argv[1];
 	Folder_name = "";
+
+Coor_set.n = 0;
+
+Endbuffer = Buffer_names;
 
 	if (	1!=sscanf (argv[2],"%d",&ATOM_FROM)
 		||	1!=sscanf (argv[3],"%d",&ATOM_TO)
@@ -80,12 +112,12 @@ int main(int argc, char *argv[])
 
 	name_source = argv[1];
 
-	endbuffer = process_setfile	( name_source
+	Endbuffer = process_setfile	( name_source
 								, Folder_line
 								, Fn
 								, MAXCOOR
 								, &N_files
-								, endbuffer
+								, Endbuffer
 								);
 
 	Folder_name = Folder_line;
@@ -93,91 +125,102 @@ int main(int argc, char *argv[])
 	printf ("File names read=%d\n", N_files);
 }
 
-{
-	int i;
-	char *name_line;
-	char name_i[1024];
-	struct model model_input;
+	assert(Endbuffer);
 
-		
-	for (i = 0; i < N_files; i++) {
-		name_line = Fn[i];
 
-		name_i[0] = '\0';
-		strcpy(name_i, Folder_name);
-		strcat(name_i, name_line);
-
-		if (NULL != (fi = fopen(name_i, "r"))) {
-			struct coordinates *pma = &Coor[N_coor];
-
-			modelload(fi, &model_input);
-			mod2_ALLcoord (&model_input, pma, ATOM_FROM, ATOM_TO);
-
-			if (pma->n == 0) {
-				fprintf (stderr, "Warning: File %s could be empty\n", name_i);
-			} else {
-
-				// make a label for this file
-				Ln[N_coor] = endlabels;
-				strcpy(endlabels,"label_");
-				endlabels += strlen("label_");
-				strcpy(endlabels,name_line);
-				endlabels += strlen(name_line);
-				endlabels += 1;
-
-				N_coor++;
-			}
-
-			fclose(fi);
-		} else {
-			printf("problems with %s\n", namei);
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	printf ("Files read=%d\n", N_coor);
-}
-
-{
-	int i;
-	struct transrot tr;
-	for (i = 0; i < N_coor; i++) {
-		assert (Coor[i].n > 0);
-		rmsd = fit (&Coor[0], &Coor[i], &tr);
-		//printf("RMSD [%d,%d]: %.4lf\n",0,i,rmsd);
-	}
-}
-
+	coord_collect	( Folder_name
+					, Fn
+					, N_files
+					, ATOM_FROM
+					, ATOM_TO
+					, "BA"
+					, &Coor_set);
 
 
 {
 	FILE *ofile;
 	int i,j,n;
 	struct transrot tr;
-	n = N_coor; 
+	n = Coor_set.n; 
+	char oname[1204] = "infile";
 
-	if (NULL != (ofile = fopen("infile", "w"))) {
+	if (NULL != (ofile = fopen(oname, "w"))) {
 
 		fprintf(ofile,"%d\n",n);
 		for (i = 0; i < n; i++) {
 
 			fprintf (stderr,"reference: %d\n",i);
-			fprintf(ofile, "%-10s",Ln[i]);
+			fprintf(ofile, "%-10s",Coor_set.label[i]);
 	
 			for (j = 0; j < n; j++) {
-				assert (Coor[i].n > 0 && Coor[j].n);
-				rmsd = fit (&Coor[i], &Coor[j], &tr);
+				assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n);
+				rmsd = fit (&Coor_set.coor[i], &Coor_set.coor[j], &tr);
 				fprintf(ofile," %.4lf",rmsd);
 			}
 			fprintf(ofile,"\n");
 		}
 		fclose(ofile);
+	} else {
+			printf("problems opening %s\n", oname);
+			exit(EXIT_FAILURE);
 	}
 }
 
     return EXIT_SUCCESS;
 }
 
+static void
+coord_collect	( char *folder
+				, char *inputfiles[]
+				, int n_input
+				, int atom_from
+				, int atom_to
+				, char *prefix
+				, struct coordinates_set *cs)
+{
+	FILE *fi;
+	int i;
+	char *name_line;
+	char name_i[1024];
+	struct model model_input;
+	int nc = cs->n;
+		
+	for (i = 0; i < n_input; i++) {
+		name_line = inputfiles[i];
+
+		name_i[0] = '\0';
+		strcpy(name_i, folder);
+		strcat(name_i, name_line);
+
+		if (NULL != (fi = fopen(name_i, "r"))) {
+			struct coordinates *pma = &(cs->coor[nc]);
+
+			modelload(fi, &model_input);
+			mod2_ALLcoord (&model_input, pma, atom_from, atom_to);
+
+			if (pma->n == 0) {
+				fprintf (stderr, "Warning: File %s could be empty\n", name_i);
+			} else {
+				// make a label for this file
+				cs->label[nc] = make_label_alloc (prefix,name_line);
+				nc++;
+			}
+
+			fclose(fi);
+		} else {
+			printf("problems with %s\n", name_i);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	printf ("Files read=%d\n", nc);
+
+	cs->n = nc;
+
+	return;
+}
+
+//========================================================================
 
 
 void mod2_CAcoord(const struct model *m, struct coordinates *c)
@@ -259,7 +302,7 @@ process_setfile	( const char *name_source
 
 			}
 
-			endbuffer = '\0';
+			*endbuffer = '\0';
 
 		}
 		fclose(fs);	
