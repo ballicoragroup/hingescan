@@ -95,7 +95,7 @@ triangle_key(int i, int j, int side_size)
 
 int main(int argc, char *argv[])
 {
-	double rmsd;
+	double rmsd, rmsd0;
 	double *rbuf;
 	int r;
 
@@ -106,10 +106,8 @@ int main(int argc, char *argv[])
     } 
     
 	Folder_name = "";
-
-Coor_set.n = 0;
-
-Endbuffer = Buffer_names;
+	Coor_set.n = 0;
+	Endbuffer = Buffer_names;
 
 	if (	1!=sscanf (argv[1],"%d",&ATOM_FROM)
 		||	1!=sscanf (argv[2],"%d",&ATOM_TO)
@@ -162,6 +160,8 @@ Endbuffer = Buffer_names;
 					, "B"
 					, &Coor_set);
 
+printf ("Total elements: %d\n", Coor_set.n);
+
 	r = 0;
 	rbuf = malloc (sizeof(double) * Coor_set.n * Coor_set.n);
 
@@ -170,10 +170,11 @@ Endbuffer = Buffer_names;
 		FILE *ofile;
 		int i,j,n;
 		struct transrot tr;
-		n = Coor_set.n; 
 		char buffname [1024] = "infile";
 		char *oname = buffname;
-	
+
+		n = Coor_set.n; 
+
 		// calculation, store in triangular buffer
 		for (i = 0; i < n; i++) {
 
@@ -184,6 +185,7 @@ Endbuffer = Buffer_names;
 				assert (j >= i);
 				assert (r == triangle_key(i,j,n));
 				rmsd = fit (&Coor_set.coor[i], &Coor_set.coor[j], &tr);
+				assert(j != i || rmsd < 0.0001 || 0==fprintf(stderr,"Label=%s, self rmsd=%.4lf\n",Coor_set.label[i],rmsd));
 				rbuf[r++] = rmsd;
 			}
 		}
@@ -198,6 +200,10 @@ Endbuffer = Buffer_names;
 				for (j = 0; j < n; j++) {
 					assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n);
 					rmsd = rbuf [triangle_key(i<j?i:j,  i<j?j:i, n)];
+
+//					rmsd0 = fit (&Coor_set.coor[i], &Coor_set.coor[j], &tr, i==j && i==628);
+//					assert((rmsd0 - rmsd) < 0.0001 && (rmsd - rmsd0) < 0.0001);
+
 					fprintf(ofile," %.4lf",rmsd);
 				}
 				fprintf(ofile,"\n");
@@ -301,7 +307,10 @@ void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int t
 	
 	for (i = 0, j = 0; i < n ; i++) {
 		
-		if (m->a[i].atmnum >= from && m->a[i].atmnum <= to) {
+		if (   m->a[i].atmnum >= from 
+			&& m->a[i].atmnum <= to
+			&& m->a[i].atmlabel[0] != 'H'
+			) {
   			c->atm[j][0] = m->a[i].x;
   			c->atm[j][1] = m->a[i].y;
   			c->atm[j][2] = m->a[i].z;
@@ -312,6 +321,7 @@ void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int t
 	
  	}
  	c->n = j;
+
 }
 
 //==================================================================================

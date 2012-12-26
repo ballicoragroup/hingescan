@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <math.h>
@@ -230,7 +231,7 @@ double vector_sqdist(const double *v, const double *w)
 }
 
 
-void coor_masscenter(const struct coordinates *tp, double *c)
+static void coor_masscenter(const struct coordinates *tp, double *c)
 {
 	int d, n;
 	double ac_x, ac_y, ac_z;
@@ -341,12 +342,21 @@ fit (const struct coordinates *t, const struct coordinates *m, struct transrot *
 	for (i = 0; i < 2000; i++) {
 
 		z = iterfit(ptbuf, pmbuf, &scale, p);
+
 		if (i != 0) {
-  			if (((z0-z)/z0) < 0.0000000001) break;	
+			if (sqrt(z0) < 0.0000001) {
+				z = z > z0? z0: z; 
+				break;
+			}
+  			if (
+				z < z0 
+				&&	((z0-z)/z0) < 0.0000000001) {
+
+				break;	
+			}
   			z0 = z;
-		} else {
-			z0 = z;
-  		}
+		} 
+		else {	z0 = z;}
 
 	}
 #else
@@ -356,7 +366,6 @@ fit (const struct coordinates *t, const struct coordinates *m, struct transrot *
 	}	
 	
 #endif
-//	printf("  ending RMSD: %.4lf\n",sqrt(z));
 
 	getrotation (p, &r);
 	get_transrot (&r, &tr);
@@ -399,6 +408,9 @@ double iterfit (const struct coordinates *t,
 	double finc, fdec;
 	double delta[NPARAM] ={	0.00000001, 0.00000001, 0.00000001,
         					0.00000001, 0.00000001, 0.00000001 };
+
+double fS_ori;
+
 	/************/
 
 
@@ -423,7 +435,8 @@ double iterfit (const struct coordinates *t,
 	prmcpy(pori, pS);
  	prmsca(dp, 0, pS); 		/* apply dp to pS, scaled by 0. No changes here...*/
  	fS = sqdev (t, m, pS); 	/* fS = starting deviation */
-
+	
+	fS_ori = fS;
  
 #ifdef INSPECT
  	showvector6("dp calculated in iter fit", dp);
@@ -445,18 +458,26 @@ double iterfit (const struct coordinates *t,
   	}     
 #endif
      
-fN = 2 * fS; //HACK, forces to go the first round.
-
 	if (fS < fi[LOW] && fS < fi[MED] && fS < fi[HIG]) {
 		/* The starting point is the best, so, it will search*/
 		/* for much lower sN factors until it finds one that is */
 		/* lower than the starting point */
+
+			sN /= 2;
+			prmcpy(pori, pN);
+			prmsca(dp, sN, pN);               
+			fN = sqdev (t, m, pN);	
+
 		for (i = 0, sN = sci[LOW]; i < SUBLIMIT && fS < fN; i++) {
 			sN /= 2;
 			prmcpy(pori, pN);
 			prmsca(dp, sN, pN);               
 			fN = sqdev (t, m, pN);			
 		}
+
+assert(fN <= fS);
+assert(sqdev (t, m, pN) <= sqdev (t, m, pS));
+
 	 	sc = 0.8; /* adjusting factor */
 	 	prmcpy(pN, pS);
    		fS   = fN;
@@ -466,6 +487,10 @@ fN = 2 * fS; //HACK, forces to go the first round.
    	if (fi[MED] <= fi[LOW] && fi[MED] <= fi[HIG]) {
    		prmcpy(pi[MED], p_io);
    		*s_io = sci[MED];   		
+
+assert(fi[MED] <= fS_ori);
+assert(sqdev (t, m, pi[MED]) <= sqdev (t, m, pS));
+
    		return fi[MED];
     } else if (fi[HIG] <= fi[LOW]) {
     	best = HIG;
@@ -481,6 +506,7 @@ fN = 2 * fS; //HACK, forces to go the first round.
    	    sS   =sci[best];    	
     }	
 
+assert(fS <= fS_ori);
         	
 	prmcpy(pS, pN);                           /* pN starts with pS values */
 	fN = fS;
@@ -517,16 +543,27 @@ fN = 2 * fS; //HACK, forces to go the first round.
              	
 	}	
 
+assert(fN >= fS || 0==fprintf(stderr,"counter=%d\n, fN=%lf, fS%lf",counter,fN,fS));
+assert(sqdev (t, m, pN) >= sqdev (t, m, pS));
+
 #ifdef INSPECT
 	printf("end\n");
 	printf("%5d:  %9.5lf: %8.5lf\n", counter, sS, sqrt(fS));	
  	printf("\n");
  	system("PAUSE");
 #endif
- 	
-	prmcpy(pS, p_io);
-	*s_io = sS;
-	return fS;
+
+	assert(fS <= fS_ori);
+	assert(sqdev (t, m, pS) <= sqdev (t, m, pori)); 
+
+	if (fS <= fS_ori) {
+		prmcpy(pS, p_io);
+		*s_io = sS;
+		return fS;
+	} else {
+	 	prmcpy(pori, p_io);                     /* preserves original values */
+		return fS_ori;
+	}
 }
 
 
