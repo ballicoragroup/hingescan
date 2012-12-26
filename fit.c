@@ -336,6 +336,8 @@ fit (const struct coordinates *t, const struct coordinates *m, struct transrot *
 
 	
 #if 1
+	z0 = iterfit(ptbuf, pmbuf, &scale, p);
+
 	for (i = 0; i < 2000; i++) {
 
 		z = iterfit(ptbuf, pmbuf, &scale, p);
@@ -419,8 +421,8 @@ double iterfit (const struct coordinates *t,
 	}
 
 	prmcpy(pori, pS);
- 	prmsca(dp, 0, pS);
- 	fS = sqdev (t, m, pS); 	
+ 	prmsca(dp, 0, pS); 		/* apply dp to pS, scaled by 0. No changes here...*/
+ 	fS = sqdev (t, m, pS); 	/* fS = starting deviation */
 
  
 #ifdef INSPECT
@@ -443,17 +445,18 @@ double iterfit (const struct coordinates *t,
   	}     
 #endif
      
-     
-    if (fS < fi[LOW] && fS < fi[MED] && fS < fi[HIG]) {
-    	/* The starting point is the best, so, it will search*/
-    	/* for much lower sN factors until it finds one that is */
-    	/* lower than the starting point */
-    	for (i = 0, sN = sci[LOW]; i < SUBLIMIT && fS < fN; i++) {
+fN = 2 * fS; //HACK, forces to go the first round.
+
+	if (fS < fi[LOW] && fS < fi[MED] && fS < fi[HIG]) {
+		/* The starting point is the best, so, it will search*/
+		/* for much lower sN factors until it finds one that is */
+		/* lower than the starting point */
+		for (i = 0, sN = sci[LOW]; i < SUBLIMIT && fS < fN; i++) {
 			sN /= 2;
-	 	   	prmcpy(pori, pN);
-  		 	prmsca(dp, sN, pN);               
-	  		fN = sqdev (t, m, pN);			
-		 }
+			prmcpy(pori, pN);
+			prmsca(dp, sN, pN);               
+			fN = sqdev (t, m, pN);			
+		}
 	 	sc = 0.8; /* adjusting factor */
 	 	prmcpy(pN, pS);
    		fS   = fN;
@@ -588,6 +591,8 @@ double iterfitQ(const struct coordinates *t,
 	prmcpy(p, pS);
  	fS = sqdev (t, m, pS); 
 
+fN = fS; //in case there is no iterations;
+
  	for (iter = 0; iter < SUBLIMIT; iter++) {
 	
   		/* obtain derivative dp */
@@ -601,7 +606,6 @@ double iterfitQ(const struct coordinates *t,
      		dp[c] = (finc - fdec)/(2*delta[c]); /* derivative */ 		
      		dp[c] = -dp[c];                     /* nega value of the deriv */
      	}
-
 
         while (qfactor > QLIMIT) {
  			for (i = 0; i < NPARAM; i++) {
