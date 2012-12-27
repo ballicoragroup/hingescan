@@ -463,7 +463,7 @@ double fS_ori;
 		/* for much lower sN factors until it finds one that is */
 		/* lower than the starting point */
 
-			sN /= 2;
+			sN = sci[0]/2;
 			prmcpy(pori, pN);
 			prmsca(dp, sN, pN);               
 			fN = sqdev (t, m, pN);	

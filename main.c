@@ -30,7 +30,7 @@ int ATOM_FROM;
 int ATOM_TO;
 
 char Folder_line[1024];
-char *Folder_name;
+const char *Folder_name;
 
 
 char *Fn[MAXCOOR]; // File names
@@ -49,7 +49,7 @@ static char *trimCRLF (char *x)
 }
 
 static char *
-make_label_alloc(char *prefix, char *name)
+make_label_alloc(const char *prefix, char *name)
 {
 	char *ori = Endbuffer;
 
@@ -75,12 +75,12 @@ process_setfile	( const char *name_source
 				);
 
 static void
-coord_collect	( char *folder
+coord_collect	( const char *folder
 				, char *inputfiles[]
 				, int n_input
 				, int atom_from
 				, int atom_to
-				, char *prefix
+				, const char *prefix
 				, struct coordinates_set *cs);
 
 static int
@@ -95,7 +95,7 @@ triangle_key(int i, int j, int side_size)
 
 int main(int argc, char *argv[])
 {
-	double rmsd, rmsd0;
+	double rmsd;
 	double *rbuf;
 	int r;
 
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
 printf ("Total elements: %d\n", Coor_set.n);
 
 	r = 0;
-	rbuf = malloc (sizeof(double) * Coor_set.n * Coor_set.n);
+	rbuf = malloc (sizeof(double) * (size_t)Coor_set.n * (size_t)Coor_set.n);
 
 	if (rbuf) {
 
@@ -227,12 +227,12 @@ printf ("Total elements: %d\n", Coor_set.n);
 //----------------------------------------------------------------------------
 
 static void
-coord_collect	( char *folder
+coord_collect	( const char *folder
 				, char *inputfiles[]
 				, int n_input
 				, int atom_from
 				, int atom_to
-				, char *prefix
+				, const char *prefix
 				, struct coordinates_set *cs)
 {
 	FILE *fi;

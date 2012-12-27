@@ -5,9 +5,9 @@
 #include "strtools.h"
 #include "bool.h"
 
-void atomadd(const char *s, struct model *m);
-bool_t ishead (char *s, char *t);
-bool_t isEND (char *s);
+static void atomadd(const char *s, struct model *m);
+static bool_t ishead (const char *s, const char *t);
+static bool_t isEND (const char *s);
 
 
 void modelload(FILE *fi, struct model *pmodel)
@@ -32,13 +32,15 @@ void modelload(FILE *fi, struct model *pmodel)
 }
 
 
-void atomadd(const char *s, struct model *m)
+static void 
+atomadd(const char *s, struct model *m)
 {
 	enum {MAXVARS = 12};
-	int cols[MAXVARS+1] = {1, 7, 12, 17, 18, 21, 23, 31, 39, 47, 55, 61, 67};
+	size_t cols[MAXVARS+1] = {1, 7, 12, 17, 18, 21, 23, 31, 39, 47, 55, 61, 67};
 
 	char inp[MAXLINE+1];
-	int v, i, k, sz;
+	int v, k;
+	size_t i, sz;
 	struct atom at;
  	struct atom at_none = {0, 0, "", '_', "", '_', -1, 0.0, 0.0, 0.0, 0.0, 0.0}; 
 	
@@ -47,8 +49,8 @@ void atomadd(const char *s, struct model *m)
 	sz = strlen(s);
 	
 	for (v = 0; v < MAXVARS; v++) {
-		int from = cols[v    ] - 1;
-		int top  = cols[v + 1] - 1;
+		size_t from = cols[v    ] - 1;
+		size_t top  = cols[v + 1] - 1;
 		k = 0;
 		for (i = from; i < sz && i < top; i++) {
  			inp[k++] = s[i];
@@ -115,10 +117,11 @@ void fprintatom (FILE *f, struct atom *p)
 }
 
 
-
+#if 0
+static 
 char *s_atom (struct atom *p, char *buffer_out, int max)
 {
-	char *atm;
+	const char *atm;
 	char buffer[256];
 	char *s = buffer;
  	char *e = buffer;
@@ -150,18 +153,18 @@ char *s_atom (struct atom *p, char *buffer_out, int max)
     
     return buffer_out;
 }
+#endif
 
-
-bool_t
-ishead (char *s, char *t)
+static bool_t
+ishead (const char *s, const char *t)
 {
 	return 	s[0]==t[0] && s[1]==t[1] && s[2]==t[2] && 
             s[3]==t[3] && s[4]==t[4] && s[5]==t[5];
 }
 
 
-bool_t
-isEND (char *s)
+static bool_t
+isEND (const char *s)
 {
 	return 	s[0]=='E' && s[1]=='N' && s[2]=='D' && 
             (s[3]=='\0' || s[3]==EOF || isspace(s[3]));

@@ -1,4 +1,7 @@
 *.sh
 *~
 *.rb
+data/*
+example/*
+rmsd
 
