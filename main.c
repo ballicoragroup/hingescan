@@ -72,6 +72,8 @@ process_setfile	( const char *name_source
 				, int maxcoor
 				, int *fnam_n
 				, char *endbuffer
+				, int *atom_from
+				, int *atom_to
 				);
 
 static void
@@ -99,9 +101,9 @@ int main(int argc, char *argv[])
 	double *rbuf;
 	int r;
 
-    if (argc < 4) {
+    if (argc < 3) {
     	printf("Not enough parameters\n");
-    	printf("Usage: %s [atom from] [atom to] [pdblist] [pdblist]\n", "rmsd");
+    	printf("Usage: %s [pdblist] [pdblist]\n", "rmsd");
         exit(EXIT_FAILURE);	
     } 
     
@@ -109,20 +111,23 @@ int main(int argc, char *argv[])
 	Coor_set.n = 0;
 	Endbuffer = Buffer_names;
 
+/*
 	if (	1!=sscanf (argv[1],"%d",&ATOM_FROM)
 		||	1!=sscanf (argv[2],"%d",&ATOM_TO)
 		) {
 		fprintf(stderr, "Error in input parameters\n");
 		exit(EXIT_FAILURE);
 	}
+*/
 
-
-	Endbuffer = process_setfile	( argv[3]
+	Endbuffer = process_setfile	( argv[1]
 								, Folder_line
 								, Fn
 								, MAXCOOR
 								, &N_files
 								, Endbuffer
+								, &ATOM_FROM
+								, &ATOM_TO
 								);
 
 	Folder_name = Folder_line;
@@ -139,13 +144,16 @@ int main(int argc, char *argv[])
 					, &Coor_set);
 //
 
-	Endbuffer = process_setfile	( argv[4]
+	Endbuffer = process_setfile	( argv[2]
 								, Folder_line
 								, Fn
 								, MAXCOOR
 								, &N_files
 								, Endbuffer
+								, &ATOM_FROM
+								, &ATOM_TO
 								);
+
 
 	Folder_name = Folder_line;
 
@@ -333,17 +341,34 @@ process_setfile	( const char *name_source
 				, int maxcoor
 				, int *fnam_n
 				, char *endbuffer
+				, int *atom_from
+				, int *atom_to
 				)
 {
 	FILE *fs;
+	char line[1024];
 	char name_line[1024];
 	int N_fnam = 0;
+	bool_t ok;
+	int atmfrom, atmto;
 
 	if (NULL != (fs = fopen(name_source, "r"))) {
 
 		printf ("open: %s\n",name_source);
 
-		if (fgets(infolder, 1024, fs)) {
+		ok = 0 != fgets(line, 1024, fs);
+		ok = ok && 1==sscanf (line,"%d",&atmfrom);
+		ok = 0 != fgets(line, 1024, fs);
+		ok = ok && 1==sscanf (line,"%d",&atmto);
+		if (!ok) {
+			fprintf(stderr, "Error in input parameters, file=%s\n",name_source);
+			exit(EXIT_FAILURE);
+		} else {
+			*atom_from = atmfrom;
+			*atom_to   = atmto;
+		}
+
+		if (ok && fgets(infolder, 1024, fs)) {
 			trimCRLF(infolder);
 
 			while (N_fnam < maxcoor && fgets(name_line, 1024, fs)) {
@@ -362,9 +387,7 @@ process_setfile	( const char *name_source
 				endbuffer += strlen(name_line) + 1;
 
 			}
-
 			*endbuffer = '\0';
-
 		}
 		fclose(fs);	
 	} else {
