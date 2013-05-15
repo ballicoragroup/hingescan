@@ -97,13 +97,21 @@ triangle_key(int i, int j, int side_size)
 
 int main(int argc, char *argv[])
 {
+	const char *prefix[] = {
+		"0","A","B","C","D","E","F","G","H","I",
+		"J","K","L","M","N","O","P","Q","R","S",
+		"T","U","V","W","X","Y","Z"
+	};
+
 	double rmsd;
 	double *rbuf;
 	int r;
+	int series;
+	int maxseries = 27;
 
-    if (argc < 3) {
+    if (argc < 2) {
     	printf("Not enough parameters\n");
-    	printf("Usage: %s [pdblist] [pdblist]\n", "rmsd");
+    	printf("Usage: %s [pdblist] ...\n", "rmsd");
         exit(EXIT_FAILURE);	
     } 
     
@@ -111,16 +119,9 @@ int main(int argc, char *argv[])
 	Coor_set.n = 0;
 	Endbuffer = Buffer_names;
 
-/*
-	if (	1!=sscanf (argv[1],"%d",&ATOM_FROM)
-		||	1!=sscanf (argv[2],"%d",&ATOM_TO)
-		) {
-		fprintf(stderr, "Error in input parameters\n");
-		exit(EXIT_FAILURE);
-	}
-*/
+for (series = 1; series < argc && series < maxseries; series++) {
 
-	Endbuffer = process_setfile	( argv[1]
+	Endbuffer = process_setfile	( argv[series]
 								, Folder_line
 								, Fn
 								, MAXCOOR
@@ -132,7 +133,7 @@ int main(int argc, char *argv[])
 
 	Folder_name = Folder_line;
 
-	printf ("File names read=%d\n", N_files);
+	printf ("Set=%d, File names read=%d\n", series, N_files);
 	assert(Endbuffer);
 
 	coord_collect	( Folder_name
@@ -140,33 +141,9 @@ int main(int argc, char *argv[])
 					, N_files
 					, ATOM_FROM
 					, ATOM_TO
-					, "A"
+					, prefix[series]
 					, &Coor_set);
-//
-
-	Endbuffer = process_setfile	( argv[2]
-								, Folder_line
-								, Fn
-								, MAXCOOR
-								, &N_files
-								, Endbuffer
-								, &ATOM_FROM
-								, &ATOM_TO
-								);
-
-
-	Folder_name = Folder_line;
-
-	printf ("File names read=%d\n", N_files);
-	assert(Endbuffer);
-
-	coord_collect	( Folder_name
-					, Fn
-					, N_files
-					, ATOM_FROM
-					, ATOM_TO
-					, "B"
-					, &Coor_set);
+}
 
 printf ("Total elements: %d\n", Coor_set.n);
 
@@ -186,7 +163,7 @@ printf ("Total elements: %d\n", Coor_set.n);
 		// calculation, store in triangular buffer
 		for (i = 0; i < n; i++) {
 
-			fprintf (stderr,"reference: %d\n",i);
+			fprintf (stderr,"processed: %d/%d\n",i,n);
 	
 			for (j = i; j < n; j++) {
 				assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n > 0);
