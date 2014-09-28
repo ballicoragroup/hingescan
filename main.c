@@ -30,6 +30,9 @@ int main(int argc, char *argv[])
 	struct model MIA, MIB;
 	int window = 81;
 	int n_slices, fr, to, av, j;
+	char *name_A = "data/ns-c.pdb";
+	char *name_B = "data/ns-o.pdb";
+
 
     if (argc < 2) {
     	printf("Not enough parameters\n");
@@ -37,11 +40,8 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);	
     } 
 
-//	collectmypdb	("example/Eco0028.pdb", &MIA);
-//	collectmypdb	("example/Eco0105.pdb", &MIB);
-
-	collectmypdb	("ns-c.pdb", &MIA);
-	collectmypdb	("ns-o.pdb", &MIB);
+	collectmypdb	(name_A, &MIA);
+	collectmypdb	(name_B, &MIB);
 
 	mod2_CAcoord (&MIA, &SCA_all);
 	mod2_CAcoord (&MIB, &SCB_all);
@@ -70,6 +70,7 @@ fprintf (stderr,"n transferred=%d, %d\n",SCA.n, SCB.n);
 
 		rmsd = fit (&SCA, &SCB, &tr);
 				
+if (0) {
 if (av == 514) {
 	FILE *fo;
 	model_transrot(&tr, &MIB);
@@ -81,6 +82,7 @@ if (av == 514) {
 		fprintpdb(fo, &MIA); 
 		fclose (fo);
 	}
+}
 }
 				
 		printf("%d, %lf\n",av+16,rmsd);
