@@ -16,6 +16,8 @@ static void coord_extract (const struct coordinates *c, struct coordinates *o, i
 void mod2_CAcoord(const struct model *m, struct coordinates *c);
 void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int to);
 
+static void	findhinges (struct model *model_a, struct model *model_b, int window );
+
 //=============================================================================
 
 static void
@@ -24,14 +26,10 @@ collectmypdb	(const char *name_i, struct model *pmodel_input);
 
 int main(int argc, char *argv[])
 {
-	double rmsd;
-	struct coordinates SCA, SCB, SCA_all, SCB_all;   
-	struct transrot tr;
 	struct model MIA, MIB;
 	int window = 81;
-	int n_slices, fr, to, av, j;
-	char *name_A = "data/ns-c.pdb";
-	char *name_B = "data/ns-o.pdb";
+	const char *name_A = "data/ns-c.pdb";
+	const char *name_B = "data/ns-o.pdb";
 
 
     if (argc < 2) {
@@ -43,50 +41,7 @@ int main(int argc, char *argv[])
 	collectmypdb	(name_A, &MIA);
 	collectmypdb	(name_B, &MIB);
 
-	mod2_CAcoord (&MIA, &SCA_all);
-	mod2_CAcoord (&MIB, &SCB_all);
-
-	n_slices = (SCA_all.n - window + 1);
-
-	printf ("n_slices=%d, MIA.n=%d\n",n_slices,MIA.n); 
-	printf ("window=%d\n",window); 
-
-	for (j = 0; j < n_slices; j++) {
-
-		fr = j;
-		to = fr + window - 1;
-		av = (fr+to)/2;
-
-		coord_extract (&SCA_all, &SCA, fr, to);
-		coord_extract (&SCB_all, &SCB, fr, to);
-
-			
-fprintf (stderr,"from=%d, to=%d\n",fr,to);
-fprintf (stderr,"n transferred=%d, %d\n",SCA.n, SCB.n);
-
-		if (SCA.n == 0 || SCB.n == 0 || SCA.n != SCB.n) {
-			fprintf (stderr, "Warning: File could be empty\n"); exit(0);
-		} 
-
-		rmsd = fit (&SCA, &SCB, &tr);
-				
-if (0) {
-if (av == 514) {
-	FILE *fo;
-	model_transrot(&tr, &MIB);
-	if (NULL != (fo = fopen("btmpout_B.pdb","w"))) {
-		fprintpdb(fo, &MIB); 
-		fclose (fo);
-	}
-	if (NULL != (fo = fopen("btmpout_A.pdb","w"))) {
-		fprintpdb(fo, &MIA); 
-		fclose (fo);
-	}
-}
-}
-				
-		printf("%d, %lf\n",av+16,rmsd);
-	}
+	findhinges (&MIA, &MIB, window);
 
     return EXIT_SUCCESS;
 }
@@ -172,4 +127,61 @@ void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int t
 }
 
 //==================================================================================
+
+static void
+findhinges (struct model *model_a, struct model *model_b, int window )
+{
+	double rmsd;
+	int n_slices, fr, to, av, j;
+
+	struct coordinates SCA, SCB, SCA_all, SCB_all;   
+	struct transrot tr;
+
+//
+
+	mod2_CAcoord (model_a, &SCA_all);
+	mod2_CAcoord (model_b, &SCB_all);
+
+	n_slices = (SCA_all.n - window + 1);
+
+	printf ("n_slices=%d, MIA.n=%d\n",n_slices,model_a->n); 
+	printf ("window=%d\n",window); 
+
+	for (j = 0; j < n_slices; j++) {
+
+		fr = j;
+		to = fr + window - 1;
+		av = (fr+to)/2;
+
+		coord_extract (&SCA_all, &SCA, fr, to);
+		coord_extract (&SCB_all, &SCB, fr, to);
+
+		//fprintf (stderr,"from=%d, to=%d\n",fr,to);
+		//fprintf (stderr,"n transferred=%d, %d\n",SCA.n, SCB.n);
+
+		if (SCA.n == 0 || SCB.n == 0 || SCA.n != SCB.n) {
+			fprintf (stderr, "Warning: File could be empty\n"); exit(0);
+		} 
+
+		rmsd = fit (&SCA, &SCB, &tr);
+				
+if (0) {
+if (av == 514) {
+	FILE *fo;
+	model_transrot(&tr, model_b);
+	if (NULL != (fo = fopen("btmpout_B.pdb","w"))) {
+		fprintpdb(fo, model_b); 
+		fclose (fo);
+	}
+	if (NULL != (fo = fopen("btmpout_A.pdb","w"))) {
+		fprintpdb(fo, model_a); 
+		fclose (fo);
+	}
+}
+}
+				
+		printf("%d, %lf\n",av+16,rmsd);
+	}
+
+}
 
