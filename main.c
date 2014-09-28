@@ -43,13 +43,13 @@ int main(int argc, char *argv[])
 	collectmypdb	("ns-c.pdb", &MIA);
 	collectmypdb	("ns-o.pdb", &MIB);
 
-	printf ("n_slices=%d, MIA.n=%d\n",n_slices,MIA.n); 
-
 	mod2_CAcoord (&MIA, &SCA_all);
 	mod2_CAcoord (&MIB, &SCB_all);
 
 	n_slices = (SCA_all.n - window + 1);
 
+	printf ("n_slices=%d, MIA.n=%d\n",n_slices,MIA.n); 
+	printf ("window=%d\n",window); 
 
 	for (j = 0; j < n_slices; j++) {
 
