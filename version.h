@@ -1,2 +1,2 @@
-#define VERSION "v0.0.18-wrn1-cln2"
+#define VERSION "v0.0.19"
 
