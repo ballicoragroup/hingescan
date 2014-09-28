@@ -3,7 +3,7 @@
 /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>*/
 
 enum {NPARAM = 6, NAXIS = 3};
-enum {MAXATOMS = 1000};
+enum {MAXATOMS = 10000};
 
 struct coordinates {
 	int n;

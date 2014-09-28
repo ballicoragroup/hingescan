@@ -8,262 +8,121 @@
 #include "fit.h"
 #include <math.h>
 
-#define MAXCOOR 10000
 
-struct coordinates_set {
-	struct coordinates coor[MAXCOOR];
-	char *label[MAXCOOR]; // Label names
-	int n;
+static void coord_extract (const struct coordinates *c, struct coordinates *o, int from, int to);
 
-};
-
-struct coordinates_set Coor_set;
-
-//--------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 void mod2_CAcoord(const struct model *m, struct coordinates *c);
 void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int to);
 
-//struct model model [2];    
-
-int ATOM_FROM;
-int ATOM_TO;
-
-char Folder_line[1024];
-const char *Folder_name;
-
-
-char *Fn[MAXCOOR]; // File names
-int N_files = 0;
-
-char Buffer_names[MAXCOOR*100];
-char *Endbuffer = Buffer_names;
-
-//=================================================
-
-static char *trimCRLF (char *x)
-{
-	size_t y = strlen(x)-1;
-	x [y] = '\0';		
-	return x;
-}
-
-static char *
-make_label_alloc(const char *prefix, char *name)
-{
-	char *ori = Endbuffer;
-
-	assert(Endbuffer && prefix && name);
-
-	strcpy(Endbuffer,prefix);
-	Endbuffer += strlen(prefix);
-	strcpy(Endbuffer,name);
-	Endbuffer += strlen(name);
-	Endbuffer += 1;
-	return ori;
-}
-
-//=================================================
-
-static char *
-process_setfile	( const char *name_source
-				, /*@OUT@*/	char *infolder
-				, char *fnam[]
-				, int maxcoor
-				, int *fnam_n
-				, char *endbuffer
-				, int *atom_from
-				, int *atom_to
-				);
+//=============================================================================
 
 static void
-coord_collect	( const char *folder
-				, char *inputfiles[]
-				, int n_input
-				, int atom_from
-				, int atom_to
-				, const char *prefix
-				, struct coordinates_set *cs);
+collectmypdb	(const char *name_i, struct model *pmodel_input);
 
-static int
-triangle_key(int i, int j, int side_size)
-{
-	int waste, key;
-	assert ( j >= i);
-	waste = i * (i+1) / 2;
-	key   = i * side_size + j;
-	return key - waste;
-};
 
 int main(int argc, char *argv[])
 {
-	const char *prefix[] = {
-		"0","A","B","C","D","E","F","G","H","I",
-		"J","K","L","M","N","O","P","Q","R","S",
-		"T","U","V","W","X","Y","Z"
-	};
-
 	double rmsd;
-	double *rbuf;
-	int r;
-	int series;
-	int maxseries = 27;
+	struct coordinates SCA, SCB, SCA_all, SCB_all;   
+	struct transrot tr;
+	struct model MIA, MIB;
+	int window = 81;
+	int n_slices, fr, to, av, j;
 
     if (argc < 2) {
     	printf("Not enough parameters\n");
     	printf("Usage: %s [pdblist] ...\n", "rmsd");
         exit(EXIT_FAILURE);	
     } 
-    
-	Folder_name = "";
-	Coor_set.n = 0;
-	Endbuffer = Buffer_names;
 
-for (series = 1; series < argc && series < maxseries; series++) {
+//	collectmypdb	("example/Eco0028.pdb", &MIA);
+//	collectmypdb	("example/Eco0105.pdb", &MIB);
 
-	Endbuffer = process_setfile	( argv[series]
-								, Folder_line
-								, Fn
-								, MAXCOOR
-								, &N_files
-								, Endbuffer
-								, &ATOM_FROM
-								, &ATOM_TO
-								);
+	collectmypdb	("ns-c.pdb", &MIA);
+	collectmypdb	("ns-o.pdb", &MIB);
 
-	Folder_name = Folder_line;
+	printf ("n_slices=%d, MIA.n=%d\n",n_slices,MIA.n); 
 
-	printf ("Set=%d, File names read=%d\n", series, N_files);
-	assert(Endbuffer);
+	mod2_CAcoord (&MIA, &SCA_all);
+	mod2_CAcoord (&MIB, &SCB_all);
 
-	coord_collect	( Folder_name
-					, Fn
-					, N_files
-					, ATOM_FROM
-					, ATOM_TO
-					, prefix[series]
-					, &Coor_set);
+	n_slices = (SCA_all.n - window + 1);
+
+
+	for (j = 0; j < n_slices; j++) {
+
+		fr = j;
+		to = fr + window - 1;
+		av = (fr+to)/2;
+
+		coord_extract (&SCA_all, &SCA, fr, to);
+		coord_extract (&SCB_all, &SCB, fr, to);
+
+			
+fprintf (stderr,"from=%d, to=%d\n",fr,to);
+fprintf (stderr,"n transferred=%d, %d\n",SCA.n, SCB.n);
+
+		if (SCA.n == 0 || SCB.n == 0 || SCA.n != SCB.n) {
+			fprintf (stderr, "Warning: File could be empty\n"); exit(0);
+		} 
+
+		rmsd = fit (&SCA, &SCB, &tr);
+				
+if (av == 514) {
+	FILE *fo;
+	model_transrot(&tr, &MIB);
+	if (NULL != (fo = fopen("btmpout_B.pdb","w"))) {
+		fprintpdb(fo, &MIB); 
+		fclose (fo);
+	}
+	if (NULL != (fo = fopen("btmpout_A.pdb","w"))) {
+		fprintpdb(fo, &MIA); 
+		fclose (fo);
+	}
 }
-
-printf ("Total elements: %d\n", Coor_set.n);
-
-	r = 0;
-	rbuf = malloc (sizeof(double) * (size_t)Coor_set.n * (size_t)Coor_set.n);
-
-	if (rbuf) {
-
-		FILE *ofile;
-		int i,j,n;
-		struct transrot tr;
-		char buffname [1024] = "infile";
-		char *oname = buffname;
-
-		n = Coor_set.n; 
-
-		// calculation, store in triangular buffer
-		for (i = 0; i < n; i++) {
-
-			fprintf (stderr,"processed: %d/%d\n",i,n);
-	
-			for (j = i; j < n; j++) {
-				assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n > 0);
-				assert (j >= i);
-				assert (r == triangle_key(i,j,n));
-				rmsd = fit (&Coor_set.coor[i], &Coor_set.coor[j], &tr);
-				assert(j != i || rmsd < 0.0001 || 0==fprintf(stderr,"Label=%s, self rmsd=%.4lf\n",Coor_set.label[i],rmsd));
-				rbuf[r++] = rmsd;
-			}
-		}
-
-		if (NULL != (ofile = fopen(oname, "w"))) {
-
-			fprintf(ofile,"%d\n",n);
-			for (i = 0; i < n; i++) {
-
-				fprintf(ofile, "%-10s",Coor_set.label[i]);
-		
-				for (j = 0; j < n; j++) {
-					assert (Coor_set.coor[i].n > 0 && Coor_set.coor[j].n);
-					rmsd = rbuf [triangle_key(i<j?i:j,  i<j?j:i, n)];
-
-//					rmsd0 = fit (&Coor_set.coor[i], &Coor_set.coor[j], &tr, i==j && i==628);
-//					assert((rmsd0 - rmsd) < 0.0001 && (rmsd - rmsd0) < 0.0001);
-
-					fprintf(ofile," %.4lf",rmsd);
-				}
-				fprintf(ofile,"\n");
-			}
-			fclose(ofile);
-		} else {
-				printf("problems opening %s\n", oname);
-				exit(EXIT_FAILURE);
-		}
-
-		free(rbuf);
-
-	} else {
-		fprintf(stderr, "memory not enough\n");
-		exit(EXIT_FAILURE);
+				
+		printf("%d, %lf\n",av+16,rmsd);
 	}
 
     return EXIT_SUCCESS;
 }
 
-//----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 static void
-coord_collect	( const char *folder
-				, char *inputfiles[]
-				, int n_input
-				, int atom_from
-				, int atom_to
-				, const char *prefix
-				, struct coordinates_set *cs)
+collectmypdb	(const char *name_i, struct model *pmodel_input)
 {
 	FILE *fi;
-	int i;
-	char *name_line;
-	char name_i[1024];
-	struct model model_input;
-	int nc = cs->n;
-		
-	for (i = 0; i < n_input; i++) {
-		name_line = inputfiles[i];
-
-		name_i[0] = '\0';
-		strcpy(name_i, folder);
-		strcat(name_i, name_line);
-
-		if (NULL != (fi = fopen(name_i, "r"))) {
-			struct coordinates *pma = &(cs->coor[nc]);
-
-			modelload(fi, &model_input);
-			mod2_ALLcoord (&model_input, pma, atom_from, atom_to);
-
-			if (pma->n == 0) {
-				fprintf (stderr, "Warning: File %s could be empty\n", name_i);
-			} else {
-				// make a label for this file
-				cs->label[nc] = make_label_alloc (prefix,name_line);
-				nc++;
-			}
-
-			fclose(fi);
-		} else {
-			printf("problems with %s\n", name_i);
-			exit(EXIT_FAILURE);
-		}
+	if (NULL != (fi = fopen(name_i, "r"))) {
+		modelload(fi, pmodel_input);
+		fclose(fi);
+	} else {
+		printf("problems with %s\n", name_i);
+		exit(EXIT_FAILURE);
 	}
-
-	printf ("Files read=%d\n", nc);
-
-	cs->n = nc;
-
 	return;
 }
 
-//========================================================================
+//=============================================================================
 
+static
+void coord_extract (const struct coordinates *c, struct coordinates *o, int from, int to)
+{
+	int i, j, end;
+	int n = c->n;
+	
+	end = to+1 > n? n: to+1;
+		
+	for (i = from, j = 0; i < end; i++) {
+			o->atm[j][0] = c->atm[i][0];
+			o->atm[j][1] = c->atm[i][1];
+			o->atm[j][2] = c->atm[i][2];
+  			j++;
+ 	}
+ 	o->n = j;
+}
 
 void mod2_CAcoord(const struct model *m, struct coordinates *c)
 {
@@ -278,9 +137,10 @@ void mod2_CAcoord(const struct model *m, struct coordinates *c)
   			c->atm[j][2] = m->a[i].z;
   			j++;
     	} 
-    	if (j >= MAXATOMS)
+    	if (j >= MAXATOMS) {
+    		fprintf (stderr, "Number of atoms exceeded limit\n");
     		break;
-	
+		}
  	}
  	c->n = j;
 }
@@ -289,7 +149,7 @@ void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int t
 {
 	int i, j;
 	int n = m->n;
-	
+
 	for (i = 0, j = 0; i < n ; i++) {
 		
 		if (   m->a[i].atmnum >= from 
@@ -301,79 +161,13 @@ void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from, int t
   			c->atm[j][2] = m->a[i].z;
   			j++;
     	} 
-    	if (j >= MAXATOMS)
+    	if (j >= MAXATOMS) {
+    		fprintf (stderr, "Number of atoms exceeded limit\n");
     		break;
-	
+		}
  	}
  	c->n = j;
-
 }
 
 //==================================================================================
-
-static char *
-process_setfile	( const char *name_source
-				, /*@OUT@*/	char *infolder
-				, char *fnam[]
-				, int maxcoor
-				, int *fnam_n
-				, char *endbuffer
-				, int *atom_from
-				, int *atom_to
-				)
-{
-	FILE *fs;
-	char line[1024];
-	char name_line[1024];
-	int N_fnam = 0;
-	bool_t ok;
-	int atmfrom, atmto;
-
-	if (NULL != (fs = fopen(name_source, "r"))) {
-
-		printf ("open: %s\n",name_source);
-
-		ok = 0 != fgets(line, 1024, fs);
-		ok = ok && 1==sscanf (line,"%d",&atmfrom);
-		ok = 0 != fgets(line, 1024, fs);
-		ok = ok && 1==sscanf (line,"%d",&atmto);
-		if (!ok) {
-			fprintf(stderr, "Error in input parameters, file=%s\n",name_source);
-			exit(EXIT_FAILURE);
-		} else {
-			*atom_from = atmfrom;
-			*atom_to   = atmto;
-		}
-
-		if (ok && fgets(infolder, 1024, fs)) {
-			trimCRLF(infolder);
-
-			while (N_fnam < maxcoor && fgets(name_line, 1024, fs)) {
-				char *j;
-				trimCRLF(name_line);
-				for (j = name_line; *j && isspace(*j); j++) {;}
-				if (*j == '\0') {
-					continue;
-				}
-				if (name_line[strlen(name_line)-1] == '~') {
-					printf ("Ignored=%s\n",name_line);
-					continue;
-				}
-				fnam[N_fnam++] = endbuffer;
-				strcpy(endbuffer,name_line);
-				endbuffer += strlen(name_line) + 1;
-
-			}
-			*endbuffer = '\0';
-		}
-		fclose(fs);	
-	} else {
-		printf("problems with %s\n", name_source);
-		exit(EXIT_FAILURE);
-	}
-
-	*fnam_n = N_fnam;
-	return endbuffer;
-}
-
 

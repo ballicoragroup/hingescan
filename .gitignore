@@ -3,5 +3,8 @@
 *.rb
 data/*
 example/*
-rmsd
+rmsdscan
+*.csv
+
+
 
