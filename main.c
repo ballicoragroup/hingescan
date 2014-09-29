@@ -16,9 +16,8 @@ static void coord_extract (const struct coordinates *c, struct coordinates *o, i
 
 //static void mod2_CAcoord (const struct model *m, struct coordinates *c);
 //static void mod2_ALLcoord (const struct model *m, struct coordinates *c, int from, int to);
-static void	findhinges (struct model *model_a, struct model *model_b, int window, FILE *outf );
 
-
+static void	findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int window, FILE *outf );
 
 /*
 |
@@ -231,9 +230,7 @@ int main(int argc, char *argv[])
 		printf ("Extra parameter in command line: %s\n",inputf);
 	}
 
-	/*==== SET INPUT ====*/
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	/*========*/
 
 	collectmypdb	(inputa, &MIA);
 	collectmypdb	(inputb, &MIB);
@@ -242,16 +239,15 @@ int main(int argc, char *argv[])
 		printf ("output to = %s\n",textstr==NULL? "NULL": textstr);
 
 	if (NULL != textstr && NULL != (outf = fopen(textstr, "w"))) {
-		findhinges (&MIA, &MIB, window, outf);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, outf);
 		fclose(outf);
 	} else {
-		findhinges (&MIA, &MIB, window, stdout);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, stdout);
 	}
     return EXIT_SUCCESS;
 }
 
 //=============================================================================
-//-----------------------------------------------------------------------------
 
 static void
 collectmypdb	(const char *name_i, struct model *pmodel_input)
@@ -336,7 +332,7 @@ static void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from
 //==================================================================================
 
 static void
-findhinges (struct model *model_a, struct model *model_b, int window, FILE *outf)
+findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int window, FILE *outf)
 {
 	double rmsd;
 	int n_slices, fr, to, av, j;
@@ -354,11 +350,13 @@ findhinges (struct model *model_a, struct model *model_b, int window, FILE *outf
 
 	shift = model_get_first_residue_number (model_a);
 
-	printf ("alpha carbons = %d\n", SCA_all.n); 
-	printf ("atoms in model = %d\n", model_a->n); 
-	printf ("n_slices = %d\n", n_slices); 
-	printf ("window = %d\n",window); 
-	printf ("shift to first residue numbers = %d\n",shift); 
+	if (!isquiet) {
+		printf ("alpha carbons = %d\n", SCA_all.n); 
+		printf ("atoms in model = %d\n", model_a->n); 
+		printf ("n_slices = %d\n", n_slices); 
+		printf ("window = %d\n",window); 
+		printf ("shift to first residue numbers = %d\n",shift); 
+	}
 
 	for (j = 0; j < n_slices; j++) {
 
@@ -395,6 +393,5 @@ if (av == 514) {
 		
 		fprintf(outf,"%d, %lf\n",av+shift,rmsd);
 	}
-
 }
 
