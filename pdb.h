@@ -33,6 +33,8 @@ void model_rotate (const struct rotdata *r, struct model *m);
 void fprintpdb (FILE *f, struct model *model);
 void model_transrot (const struct transrot *tr, struct model *m);
 
+int model_get_first_residue_number (struct model *m);
+
 /*<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<*/
 #endif
 

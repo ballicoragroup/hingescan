@@ -224,3 +224,9 @@ void model_transrot (const struct transrot *tr, struct model *m)
         m->a[d].z = v[2];         
      }	
 }
+
+
+int model_get_first_residue_number (struct model *m)
+{
+	return m->n > 0? m->a[0].resnumber: -1;	
+}

@@ -75,6 +75,7 @@ static void usage (void);
 		" -v          print version number and exit\n"
 		" -L          display the license information\n"
 		" -q          quiet mode (no screen progress updates)\n"
+		" -w          window size (always odd numbers)\n"
 		" -a <file>   first input file in pdb format\n"
 		" -b <file>   second input file in pdb format\n"
 		" -o <file>   output file (text format), goes to the screen if not present\n"
@@ -87,7 +88,7 @@ static void usage (void);
 	/*	 ....5....|....5....|....5....|....5....|....5....|....5....|....5....|....5....|*/
 		
 
-const char *OPTION_LIST = "hHvLqa:b:o:";
+const char *OPTION_LIST = "hHvLqa:b:o:w:";
 
 //=============================================================================
 
@@ -127,8 +128,8 @@ int main(int argc, char *argv[])
 	FILE *outf;
 	struct model MIA, MIB;
 	int window = 81;
-	const char *inputa = "data/ns-c.pdb";
-	const char *inputb = "data/ns-o.pdb";
+	const char *inputa = "";
+	const char *inputb = "";
 	const char *textstr= "";
 	const char *inputf;
 
@@ -165,6 +166,14 @@ int main(int argc, char *argv[])
 						break;
 			case 'o': 	textstr = opt_arg;
 						break;
+			case 'w': 	if (1 != sscanf(opt_arg,"%d", &window) || window < 0) {
+							fprintf(stderr, "wrong simulation parameter\n");
+							exit(EXIT_FAILURE);
+						} else if ((((unsigned)window)&1) == 0) {
+							fprintf(stderr, "-w <window> needs to be an odd number\n");
+							exit(EXIT_FAILURE);								
+						}
+						break;
 			case 'q':	QUIET_MODE = TRUE;	break;
 			case '?': 	parameter_error();
 						exit(EXIT_FAILURE);
@@ -195,10 +204,6 @@ int main(int argc, char *argv[])
 		example();
 		usage();
 		printf ("%s\n", copyright_str);
-		exit (EXIT_SUCCESS);
-	}
-	if (QUIET_MODE) {
-		printf ("Quiet mode (-q) version not implemented\n");
 		exit (EXIT_SUCCESS);
 	}
 	if (switch_mode && !help_mode) {
@@ -233,7 +238,8 @@ int main(int argc, char *argv[])
 	collectmypdb	(inputa, &MIA);
 	collectmypdb	(inputb, &MIB);
 
-printf ("textstr=%s\n",textstr==NULL? "NULL": textstr);
+	if (!QUIET_MODE)
+		printf ("output to = %s\n",textstr==NULL? "NULL": textstr);
 
 	if (NULL != textstr && NULL != (outf = fopen(textstr, "w"))) {
 		findhinges (&MIA, &MIB, window, outf);
@@ -334,6 +340,7 @@ findhinges (struct model *model_a, struct model *model_b, int window, FILE *outf
 {
 	double rmsd;
 	int n_slices, fr, to, av, j;
+	int shift;
 
 	struct coordinates SCA, SCB, SCA_all, SCB_all;   
 	struct transrot tr;
@@ -345,8 +352,13 @@ findhinges (struct model *model_a, struct model *model_b, int window, FILE *outf
 
 	n_slices = (SCA_all.n - window + 1);
 
-	printf ("n_slices=%d, MIA.n=%d\n",n_slices,model_a->n); 
-	printf ("window=%d\n",window); 
+	shift = model_get_first_residue_number (model_a);
+
+	printf ("alpha carbons = %d\n", SCA_all.n); 
+	printf ("atoms in model = %d\n", model_a->n); 
+	printf ("n_slices = %d\n", n_slices); 
+	printf ("window = %d\n",window); 
+	printf ("shift to first residue numbers = %d\n",shift); 
 
 	for (j = 0; j < n_slices; j++) {
 
@@ -380,8 +392,8 @@ if (av == 514) {
 	}
 }
 }
-				
-		fprintf(outf,"%d, %lf\n",av+16,rmsd);
+		
+		fprintf(outf,"%d, %lf\n",av+shift,rmsd);
 	}
 
 }
