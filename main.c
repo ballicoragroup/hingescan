@@ -346,6 +346,16 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int wi
 	mod2_CAcoord (model_a, &SCA_all);
 	mod2_CAcoord (model_b, &SCB_all);
 
+for (window = 3; window < 251; window += 2) {
+printf ("w=%d\n",window);
+
+for (j = 0; j < 15; j++) {
+	fprintf (outf, "%4d ", 0);
+}
+
+for (j = 0; j < (window-1)/2; j++) {
+	fprintf (outf, "%4d ", 0);
+}
 	n_slices = (SCA_all.n - window + 1);
 
 	shift = model_get_first_residue_number (model_a);
@@ -357,6 +367,7 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int wi
 		printf ("window = %d\n",window); 
 		printf ("shift to first residue numbers = %d\n",shift); 
 	}
+
 
 	for (j = 0; j < n_slices; j++) {
 
@@ -391,7 +402,14 @@ if (av == 514) {
 }
 }
 		
-		fprintf(outf,"%d, %lf\n",av+shift,rmsd);
+//		fprintf(outf,"%d, %lf\n",av+shift,rmsd);
+
+		fprintf (outf, "%4d ", (int)(1000*rmsd));
 	}
+for (j = 0; j < (window-1)/2; j++) {
+	fprintf (outf, "%4d ", 0);
+}
+fprintf (outf, "\n");
+}
 }
 
