@@ -17,7 +17,7 @@ static void coord_extract (const struct coordinates *c, struct coordinates *o, i
 //static void mod2_CAcoord (const struct model *m, struct coordinates *c);
 //static void mod2_ALLcoord (const struct model *m, struct coordinates *c, int from, int to);
 
-static void	findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int window, FILE *outf );
+static void	findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, FILE *outf );
 
 /*
 |
@@ -57,15 +57,15 @@ static void usage (void);
 		;
 
 	static const char *intro_str =
-		"Program to detect hinges\n"
+		"Program to detect hinges by comparing two conformers\n"
 		;
 
 	const char *example_options = 
-		"example__options________here";
+		"-a file1.pdb -b file2.pdb -w 21 -o out.csv";
 
 	static const char *example_str =
-		"  - Processes <> to...........\n"
-		"  - and then ______________________________\n"
+		"  - Processes file1.pdb and file2.pdb with a window size of 21 residues\n"
+		"  - Outputs a list of hinge scores for each residue in out.csv\n"
 		;
 
 	static const char *help_str =
@@ -74,7 +74,8 @@ static void usage (void);
 		" -v          print version number and exit\n"
 		" -L          display the license information\n"
 		" -q          quiet mode (no screen progress updates)\n"
-		" -w          window size (always odd numbers)\n"
+		" -w <n>      window size (always odd). Min size if -W is provided\n"
+		" -W <n>      multi scan, from -w to -W window sizes (always odd numbers)\n"
 		" -a <file>   first input file in pdb format\n"
 		" -b <file>   second input file in pdb format\n"
 		" -o <file>   output file (text format), goes to the screen if not present\n"
@@ -87,7 +88,7 @@ static void usage (void);
 	/*	 ....5....|....5....|....5....|....5....|....5....|....5....|....5....|....5....|*/
 		
 
-const char *OPTION_LIST = "hHvLqa:b:o:w:";
+const char *OPTION_LIST = "hHvLqa:b:o:w:W:";
 
 //=============================================================================
 
@@ -126,7 +127,9 @@ int main(int argc, char *argv[])
 {
 	FILE *outf;
 	struct model MIA, MIB;
-	int window = 81;
+	int window = 31;
+	int topwindow = 31;
+	bool_t multiwin = FALSE;
 	const char *inputa = "";
 	const char *inputb = "";
 	const char *textstr= "";
@@ -172,6 +175,15 @@ int main(int argc, char *argv[])
 							fprintf(stderr, "-w <window> needs to be an odd number\n");
 							exit(EXIT_FAILURE);								
 						}
+						break;
+			case 'W': 	if (1 != sscanf(opt_arg,"%d", &topwindow) || topwindow < 0) {
+							fprintf(stderr, "wrong simulation parameter\n");
+							exit(EXIT_FAILURE);
+						} else if ((((unsigned)window)&1) == 0) {
+							fprintf(stderr, "-W <n> needs to be an odd number\n");
+							exit(EXIT_FAILURE);								
+						}
+						multiwin = TRUE;
 						break;
 			case 'q':	QUIET_MODE = TRUE;	break;
 			case '?': 	parameter_error();
@@ -230,19 +242,22 @@ int main(int argc, char *argv[])
 		printf ("Extra parameter in command line: %s\n",inputf);
 	}
 
+	multiwin = multiwin && topwindow > window;
+	if (!multiwin) topwindow = window;
+
 	/*========*/
 
 	collectmypdb	(inputa, &MIA);
 	collectmypdb	(inputb, &MIB);
 
 	if (!QUIET_MODE)
-		printf ("output to = %s\n",textstr==NULL? "NULL": textstr);
+		printf ("output to = %s\n",textstr==NULL? "stdout": textstr);
 
 	if (NULL != textstr && NULL != (outf = fopen(textstr, "w"))) {
-		findhinges (QUIET_MODE, &MIA, &MIB, window, outf);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, outf);
 		fclose(outf);
 	} else {
-		findhinges (QUIET_MODE, &MIA, &MIB, window, stdout);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, stdout);
 	}
     return EXIT_SUCCESS;
 }
@@ -332,11 +347,13 @@ static void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from
 //==================================================================================
 
 static void
-findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int window, FILE *outf)
+findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, FILE *outf)
 {
 	double rmsd;
 	int n_slices, fr, to, av, j;
 	int shift;
+	int window;
+	bool_t multi = topwindow > botwindow;
 
 	struct coordinates SCA, SCB, SCA_all, SCB_all;   
 	struct transrot tr;
@@ -346,16 +363,22 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int wi
 	mod2_CAcoord (model_a, &SCA_all);
 	mod2_CAcoord (model_b, &SCB_all);
 
-for (window = 3; window < 251; window += 2) {
-printf ("w=%d\n",window);
+for (window = botwindow; window < topwindow+1; window += 2) {
 
-for (j = 0; j < 15; j++) {
-	fprintf (outf, "%4d ", 0);
-}
+	if (multi) {
+		printf ("w=%d\n",window);
+	
+		for (j = 0; j < 15; j++) {
+			fprintf (outf, "%4d ", 0);
+		}
+	
+		for (j = 0; j < (window-1)/2; j++) {
+			fprintf (outf, "%4d ", 0);
+		}
 
-for (j = 0; j < (window-1)/2; j++) {
-	fprintf (outf, "%4d ", 0);
-}
+	}
+
+	//--------------------------------------------------
 	n_slices = (SCA_all.n - window + 1);
 
 	shift = model_get_first_residue_number (model_a);
@@ -387,29 +410,43 @@ for (j = 0; j < (window-1)/2; j++) {
 
 		rmsd = fit (&SCA, &SCB, &tr);
 				
-if (0) {
-if (av == 514) {
-	FILE *fo;
-	model_transrot(&tr, model_b);
-	if (NULL != (fo = fopen("btmpout_B.pdb","w"))) {
-		fprintpdb(fo, model_b); 
-		fclose (fo);
-	}
-	if (NULL != (fo = fopen("btmpout_A.pdb","w"))) {
-		fprintpdb(fo, model_a); 
-		fclose (fo);
-	}
-}
-}
-		
-//		fprintf(outf,"%d, %lf\n",av+shift,rmsd);
 
-		fprintf (outf, "%4d ", (int)(1000*rmsd));
+		if (0) {
+			if (av == 514) {
+				FILE *fo;
+				model_transrot(&tr, model_b);
+				if (NULL != (fo = fopen("btmpout_B.pdb","w"))) {
+					fprintpdb(fo, model_b); 
+					fclose (fo);
+				}
+				if (NULL != (fo = fopen("btmpout_A.pdb","w"))) {
+					fprintpdb(fo, model_a); 
+					fclose (fo);
+				}
+			}
+		}
+
+
+		if (!multi)	{
+			fprintf(outf,"%d, %lf\n",av+shift,rmsd);
+		} else{
+			fprintf (outf, "%4d ", (int)(1000*rmsd));
+		}
+
 	}
-for (j = 0; j < (window-1)/2; j++) {
-	fprintf (outf, "%4d ", 0);
-}
-fprintf (outf, "\n");
-}
+
+
+	// Tail
+	if (multi) {
+		for (j = 0; j < (window-1)/2; j++) {
+			fprintf (outf, "%4d ", 0);
+		}
+		fprintf (outf, "\n");
+
+	}
+
+} // loop windows
+
+
 }
 
