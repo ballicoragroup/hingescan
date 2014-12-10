@@ -391,7 +391,6 @@ for (window = botwindow; window < topwindow+1; window += 2) {
 		printf ("shift to first residue numbers = %d\n",shift); 
 	}
 
-
 	for (j = 0; j < n_slices; j++) {
 
 		fr = j;
