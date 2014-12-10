@@ -19,4 +19,4 @@
 */
 
 
-#define PROGRAM_NAME "rmsdscan"
+#define PROGRAM_NAME "hingescan"

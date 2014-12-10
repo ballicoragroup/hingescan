@@ -4,7 +4,7 @@ WARN = -Wwrite-strings -Wconversion -Wshadow -Wparentheses -Wlogical-op -Wunused
 OPT = -O3
 LIBFLAGS = -lm
 
-EXE = rmsdscan
+EXE = hingescan
 
 SRC = main.c myopt/myopt.c pdb.c fit.c strtools.c proginfo.c 
 DEPS = bool.h  myopt/myopt.h pdb.h fit.h strtools.h version.h proginfo.h
@@ -13,7 +13,7 @@ OBJ = main.o myopt/myopt.o pdb.o fit.o strtools.o proginfo.o
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-rmsdscan: $(OBJ)
+hingescan: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(WARN) $(OPT) $(LIBFLAGS)
 
 all:
