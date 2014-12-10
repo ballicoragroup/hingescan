@@ -358,94 +358,98 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 	struct coordinates SCA, SCB, SCA_all, SCB_all;   
 	struct transrot tr;
 
-//
-
 	mod2_CAcoord (model_a, &SCA_all);
 	mod2_CAcoord (model_b, &SCB_all);
 
-for (window = botwindow; window < topwindow+1; window += 2) {
+	// validation
+	if (SCA_all.n != SCB_all.n) {
+		fprintf (stderr, "Number of total residues do not match:\n"); 
+		fprintf (stderr, "model 1: %d residues\n", SCA_all.n); 
+		fprintf (stderr, "model 2: %d residues\n", SCB_all.n); 			
+		exit(0);
+	} 
 
-	if (multi) {
-		printf ("w=%d\n",window);
-	
-		for (j = 0; j < 15; j++) {
-			fprintf (outf, "%4d ", 0);
+	for (window = botwindow; window < topwindow+1; window += 2) {
+
+		//--------------------------------------------------
+		n_slices = (SCA_all.n - window + 1);
+
+		shift = model_get_first_residue_number (model_a);
+
+		if (!isquiet) {
+			if (multi) {
+				printf ("\nw=%d\n",window);
+			}
+			printf ("alpha carbons = %d\n", SCA_all.n); 
+			printf ("atoms in model = %d\n", model_a->n); 
+			printf ("number of slices = %d\n", n_slices); 
+			printf ("window = %d\n",window); 
+			printf ("shift to first residue numbers = %d\n",shift); 
 		}
-	
-		for (j = 0; j < (window-1)/2; j++) {
-			fprintf (outf, "%4d ", 0);
+
+		// head
+		if (multi) {
+			for (j = 0; j < (window-1)/2; j++) {
+				fprintf (outf, "%4d ", 0);
+			}
 		}
+		
+		for (j = 0; j < n_slices; j++) {
 
-	}
+			fr = j;
+			to = fr + window - 1;
+			av = (fr+to)/2;
 
-	//--------------------------------------------------
-	n_slices = (SCA_all.n - window + 1);
+			coord_extract (&SCA_all, &SCA, fr, to);
+			coord_extract (&SCB_all, &SCB, fr, to);
 
-	shift = model_get_first_residue_number (model_a);
+			//fprintf (stderr,"from=%d, to=%d\n",fr,to);
+			//fprintf (stderr,"n transferred=%d, %d\n",SCA.n, SCB.n);
 
-	if (!isquiet) {
-		printf ("alpha carbons = %d\n", SCA_all.n); 
-		printf ("atoms in model = %d\n", model_a->n); 
-		printf ("n_slices = %d\n", n_slices); 
-		printf ("window = %d\n",window); 
-		printf ("shift to first residue numbers = %d\n",shift); 
-	}
+			if (SCA.n == 0 || SCB.n == 0) {
+				fprintf (stderr, "Warning: File could be empty\n"); exit(0);
+			} 
 
-	for (j = 0; j < n_slices; j++) {
+			if (SCA.n != SCB.n) {
+				fprintf (stderr, "Number of residues do not match for slice: %d\n",j); 
+				fprintf (stderr, "model 1: %d residues\n", SCA.n); 
+				fprintf (stderr, "model 2: %d residues\n", SCB.n); 			
+				exit(0);
+			} 
+		
+			rmsd = fit (&SCA, &SCB, &tr);
 
-		fr = j;
-		to = fr + window - 1;
-		av = (fr+to)/2;
-
-		coord_extract (&SCA_all, &SCA, fr, to);
-		coord_extract (&SCB_all, &SCB, fr, to);
-
-		//fprintf (stderr,"from=%d, to=%d\n",fr,to);
-		//fprintf (stderr,"n transferred=%d, %d\n",SCA.n, SCB.n);
-
-		if (SCA.n == 0 || SCB.n == 0 || SCA.n != SCB.n) {
-			fprintf (stderr, "Warning: File could be empty\n"); exit(0);
-		} 
-
-		rmsd = fit (&SCA, &SCB, &tr);
-				
-
-		if (0) {
-			if (av == 514) {
-				FILE *fo;
-				model_transrot(&tr, model_b);
-				if (NULL != (fo = fopen("btmpout_B.pdb","w"))) {
-					fprintpdb(fo, model_b); 
-					fclose (fo);
+			// debug code
+			if (0) {
+				if (av == 514) {
+					FILE *fo;
+					model_transrot(&tr, model_b);
+					if (NULL != (fo = fopen("btmpout_B.pdb","w"))) {
+						fprintpdb(fo, model_b); 
+						fclose (fo);
+					}
+					if (NULL != (fo = fopen("btmpout_A.pdb","w"))) {
+						fprintpdb(fo, model_a); 
+						fclose (fo);
+					}
 				}
-				if (NULL != (fo = fopen("btmpout_A.pdb","w"))) {
-					fprintpdb(fo, model_a); 
-					fclose (fo);
-				}
+			}
+
+			if (!multi)	{
+				fprintf(outf,"%d, %lf\n",av+shift,rmsd);
+			} else{
+				fprintf (outf, "%4d ", (int)(1000*rmsd));
 			}
 		}
 
-
-		if (!multi)	{
-			fprintf(outf,"%d, %lf\n",av+shift,rmsd);
-		} else{
-			fprintf (outf, "%4d ", (int)(1000*rmsd));
+		// Tail
+		if (multi) {
+			for (j = 0; j < (window-1)/2; j++) {
+				fprintf (outf, "%4d ", 0);
+			}
+			fprintf (outf, "\n");
 		}
 
-	}
-
-
-	// Tail
-	if (multi) {
-		for (j = 0; j < (window-1)/2; j++) {
-			fprintf (outf, "%4d ", 0);
-		}
-		fprintf (outf, "\n");
-
-	}
-
-} // loop windows
-
-
+	} // end loop windows
 }
 
