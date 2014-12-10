@@ -17,7 +17,7 @@ static void coord_extract (const struct coordinates *c, struct coordinates *o, i
 //static void mod2_CAcoord (const struct model *m, struct coordinates *c);
 //static void mod2_ALLcoord (const struct model *m, struct coordinates *c, int from, int to);
 
-static void	findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, FILE *outf );
+static void	findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, bool_t corrected, FILE *outf );
 
 /*
 |
@@ -76,6 +76,7 @@ static void usage (void);
 		" -q          quiet mode (no screen progress updates)\n"
 		" -w <n>      window size (always odd). Min size if -W is provided\n"
 		" -W <n>      multi scan, from -w to -W window sizes (always odd numbers)\n"
+		" -c          corrected hinge scores\n"
 		" -a <file>   first input file in pdb format\n"
 		" -b <file>   second input file in pdb format\n"
 		" -o <file>   output file (text format), goes to the screen if not present\n"
@@ -88,7 +89,7 @@ static void usage (void);
 	/*	 ....5....|....5....|....5....|....5....|....5....|....5....|....5....|....5....|*/
 		
 
-const char *OPTION_LIST = "hHvLqa:b:o:w:W:";
+const char *OPTION_LIST = "hHvLqa:b:o:w:W:c";
 
 //=============================================================================
 
@@ -130,6 +131,7 @@ int main(int argc, char *argv[])
 	int window = 31;
 	int topwindow = 31;
 	bool_t multiwin = FALSE;
+	bool_t corrected = FALSE;
 	const char *inputa = "";
 	const char *inputb = "";
 	const char *textstr= "";
@@ -151,7 +153,8 @@ int main(int argc, char *argv[])
 	inputa       = NULL;
 	inputb       = NULL;
 	textstr      = NULL;
-
+	corrected    = FALSE;
+	
 	while (END_OF_OPTIONS != (op = options (argc, argv, OPTION_LIST))) {
 		switch (op) {
 			case 'v':	version_mode = TRUE; 	break;
@@ -186,6 +189,7 @@ int main(int argc, char *argv[])
 						multiwin = TRUE;
 						break;
 			case 'q':	QUIET_MODE = TRUE;	break;
+			case 'c':	corrected = TRUE;	break;
 			case '?': 	parameter_error();
 						exit(EXIT_FAILURE);
 						break;
@@ -254,10 +258,10 @@ int main(int argc, char *argv[])
 		printf ("output to = %s\n",textstr==NULL? "stdout": textstr);
 
 	if (NULL != textstr && NULL != (outf = fopen(textstr, "w"))) {
-		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, outf);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, outf);
 		fclose(outf);
 	} else {
-		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, stdout);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, stdout);
 	}
     return EXIT_SUCCESS;
 }
@@ -347,7 +351,7 @@ static void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from
 //==================================================================================
 
 static void
-findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, FILE *outf)
+findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, bool_t corrected, FILE *outf)
 {
 	double rmsd;
 	int n_slices, fr, to, av, j;
@@ -438,7 +442,13 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 			if (!multi)	{
 				fprintf(outf,"%d, %lf\n",av+shift,rmsd);
 			} else{
-				fprintf (outf, "%4d ", (int)(1000*rmsd));
+				double r = window/11.0;
+				double x = 1000.0 * rmsd / (1.0 + 0.5 * log(r));				
+
+				if (corrected)				
+					fprintf (outf, "%4d ", (int)(x));
+				else
+					fprintf (outf, "%4d ", (int)(1000.0 * rmsd));					
 			}
 		}
 
