@@ -4,7 +4,7 @@
 *.rb
 data/*
 example/*
-rmsdscan
+hingescan
 *.csv
 
 
