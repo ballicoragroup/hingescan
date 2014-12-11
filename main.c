@@ -394,6 +394,7 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 		// head
 		if (multi) {
 			for (j = 0; j < (window-1)/2; j++) {
+				// output a blank score
 				fprintf (outf, "%4d ", 0);
 			}
 		}
