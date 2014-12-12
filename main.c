@@ -18,7 +18,8 @@ static void gnuplot_out (const char *name_gp, int xfrom, int xto, int wfrom, int
 //static void mod2_CAcoord (const struct model *m, struct coordinates *c);
 //static void mod2_ALLcoord (const struct model *m, struct coordinates *c, int from, int to);
 
-static void	findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, bool_t corrected, FILE *outf );
+static void	findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, 
+					int botwindow, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf );
 
 /*
 |
@@ -77,6 +78,7 @@ static void usage (void);
 		" -q          quiet mode (no screen progress updates)\n"
 		" -w <n>      window size (always odd). Min size if -W is provided\n"
 		" -W <n>      multi scan, from -w to -W window sizes (always odd numbers)\n"
+		" -Z <n>      top hinge score for plotting, default is the maximum observed\n"
 		" -c          corrected hinge scores\n"
 		" -a <file>   first input file in pdb format\n"
 		" -b <file>   second input file in pdb format\n"
@@ -90,7 +92,7 @@ static void usage (void);
 	/*	 ....5....|....5....|....5....|....5....|....5....|....5....|....5....|....5....|*/
 		
 
-const char *OPTION_LIST = "hHvLqa:b:o:w:W:c";
+const char *OPTION_LIST = "hHvLqa:b:o:w:W:Z:c";
 
 //=============================================================================
 
@@ -133,6 +135,10 @@ int main(int argc, char *argv[])
 	int topwindow = 31;
 	bool_t multiwin = FALSE;
 	bool_t corrected = FALSE;
+	bool_t autoz = TRUE;
+	
+	double topz = 0;	
+	
 	const char *inputa = "";
 	const char *inputb = "";
 	const char *textstr= "";
@@ -189,6 +195,12 @@ int main(int argc, char *argv[])
 						}
 						multiwin = TRUE;
 						break;
+			case 'Z': 	if (1 != sscanf(opt_arg,"%lf", &topz) || topz < 0) {
+							fprintf(stderr, "wrong maximum hinge score provided\n");
+							exit(EXIT_FAILURE);
+						}
+						autoz = FALSE;
+						break;						
 			case 'q':	QUIET_MODE = TRUE;	break;
 			case 'c':	corrected = TRUE;	break;
 			case '?': 	parameter_error();
@@ -252,6 +264,8 @@ int main(int argc, char *argv[])
 
 	/*========*/
 
+
+
 	collectmypdb	(inputa, &MIA);
 	collectmypdb	(inputb, &MIB);
 
@@ -259,10 +273,10 @@ int main(int argc, char *argv[])
 		printf ("output to = %s\n",textstr==NULL? "stdout": textstr);
 
 	if (NULL != textstr && NULL != (outf = fopen(textstr, "w"))) {
-		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, outf);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, autoz, topz, outf);
 		fclose(outf);
 	} else {
-		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, stdout);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, autoz, topz, stdout);
 	}
 	
     return EXIT_SUCCESS;
@@ -351,15 +365,18 @@ static void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from
 #endif
 
 //==================================================================================
+#define REFERENCE_WINDOW 11.0 //FIXME
 
 static void
-findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, bool_t corrected, FILE *outf)
+findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf)
 {
 	double rmsd;
+	double zmax;
 	int n_slices, fr, to, av, j;
 	int shift = 0;
 	int window;
 	bool_t multi = topwindow > botwindow;
+	bool_t auto_zscale = autoz;
 
 	struct coordinates SCA, SCB, SCA_all, SCB_all;   
 	struct transrot tr;
@@ -375,6 +392,8 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 		exit(0);
 	} 
 
+	zmax = 0;
+	
 	for (window = botwindow; window < topwindow+1; window += 2) {
 
 		//--------------------------------------------------
@@ -445,13 +464,13 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 			if (!multi)	{
 				fprintf(outf,"%d, %lf\n",av+shift,rmsd);
 			} else{
-				double r = window/11.0;
-				double x = 1000.0 * rmsd / (1.0 + 0.5 * log(r));				
+				double r = window/REFERENCE_WINDOW;
+				double corr_x = 1.0 * rmsd / (1.0 + 0.5 * log(r));				
+				double out_x = corrected? corr_x: rmsd;
 
-				if (corrected)				
-					fprintf (outf, "%4d ", (int)(x));
-				else
-					fprintf (outf, "%4d ", (int)(1000.0 * rmsd));					
+				zmax = zmax < out_x? out_x: zmax;
+				
+				fprintf (outf, "%4d ", (int)(1000.0 * out_x));
 			}
 		}
 
@@ -467,8 +486,12 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 		
 	} // end loop windows
 	
-	gnuplot_out ("gp.plt", shift, SCA_all.n+shift-1, botwindow, topwindow, 2.7);
-printf ("b:%d\nt:%d\n",botwindow,topwindow);
+	if (!isquiet && multi) {
+		printf ("Maximum Hinge Score: %lf\n", zmax);
+	}				
+	
+	gnuplot_out ("gp.plt", shift, SCA_all.n+shift-1, botwindow, topwindow, auto_zscale? zmax: topz);
+
 }
 
 
