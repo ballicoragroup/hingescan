@@ -126,7 +126,6 @@ usage (void)
 static void
 collectmypdb	(const char *name_i, struct model *pmodel_input);
 
-
 int main(int argc, char *argv[])
 {
 	FILE *outf;
@@ -136,7 +135,6 @@ int main(int argc, char *argv[])
 	bool_t multiwin = FALSE;
 	bool_t corrected = FALSE;
 	bool_t autoz = TRUE;
-	
 	double topz = 0;	
 	
 	const char *inputa = "";
@@ -253,6 +251,7 @@ int main(int argc, char *argv[])
 		fprintf (stderr, "Need file name to proceed\n\n");
 		exit(EXIT_FAILURE);
 	}
+	
 	/* get rest, should be only one at this point */
 	while (opt_index < argc ) {
 		inputf = argv[opt_index++];
@@ -263,8 +262,6 @@ int main(int argc, char *argv[])
 	if (!multiwin) topwindow = window;
 
 	/*========*/
-
-
 
 	collectmypdb	(inputa, &MIA);
 	collectmypdb	(inputb, &MIB);
@@ -365,11 +362,11 @@ static void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from
 #endif
 
 //==================================================================================
-#define REFERENCE_WINDOW 11.0 //FIXME
 
 static void
 findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf)
 {
+	int reference_window;
 	double rmsd;
 	double zmax;
 	int n_slices, fr, to, av, j;
@@ -392,6 +389,7 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 		exit(0);
 	} 
 
+	reference_window = botwindow;
 	zmax = 0;
 	
 	for (window = botwindow; window < topwindow+1; window += 2) {
@@ -410,6 +408,8 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 			printf ("number of slices = %d\n", n_slices); 
 			printf ("window = %d\n",window); 
 			printf ("shift to first residue numbers = %d\n",shift); 
+			if (corrected) 
+				printf ("window reference for correction = %d\n",reference_window); 
 		}
 
 		// head
@@ -464,12 +464,12 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 			if (!multi)	{
 				fprintf(outf,"%d, %lf\n",av+shift,rmsd);
 			} else{
-				double r = window/REFERENCE_WINDOW;
+				double r = (double)window/(double)reference_window;
 				double corr_x = 1.0 * rmsd / (1.0 + 0.5 * log(r));				
 				double out_x = corrected? corr_x: rmsd;
 
 				zmax = zmax < out_x? out_x: zmax;
-				
+			
 				fprintf (outf, "%4d ", (int)(1000.0 * out_x));
 			}
 		}
