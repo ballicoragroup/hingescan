@@ -508,11 +508,6 @@ static const char *block1[9] =
 ,NULL
 };
 
-static const char *block2[3] = 
-{"set xrange [0:800]"    
-,"set yrange [3:251]"    
-,NULL
-};
 
 static const char *block3[7] = 
 {"set xlabel 'Residue'"
