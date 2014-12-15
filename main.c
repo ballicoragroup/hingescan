@@ -401,12 +401,11 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 
 		if (!isquiet) {
 			if (multi) {
-				printf ("\nw=%d\n",window);
+				printf ("\nwindow = %d\n",window); 
 			}
 			printf ("alpha carbons = %d\n", SCA_all.n); 
 			printf ("atoms in model = %d\n", model_a->n); 
 			printf ("number of slices = %d\n", n_slices); 
-			printf ("window = %d\n",window); 
 			printf ("shift to first residue numbers = %d\n",shift); 
 			if (corrected) 
 				printf ("window reference for correction = %d\n",reference_window); 
