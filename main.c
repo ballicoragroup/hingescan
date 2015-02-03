@@ -65,11 +65,22 @@ static void usage (void);
 	const char *example_options = 
 		"-a file1.pdb -b file2.pdb -w 21 -o out.csv";
 
+	const char *example_options2 = 
+		"-a file1.pdb -b file2.pdb -w 3 -W 21 -o out.txt";
+		
 	static const char *example_str =
 		"  - Processes file1.pdb and file2.pdb with a window size of 21 residues\n"
-		"  - Outputs a list of hinge scores for each residue in out.csv\n"
+		"  - Outputs a list of hinge scores for each residue in out.csv, which is\n"
+		"    a comma separated value file\n"
 		;
-
+		
+	static const char *example_str2 =
+		"  - Processes file1.pdb and file2.pdb from window 3 to 21 residues\n"
+		"  - Outputs a matrix of hinge scores for each residue in out.txt (text file)\n"
+		"  - Outputs a gnuplot 4.2 file (gp.plt) to plot out.txt in two dimensions.\n"
+		"    (score v. window). This file would be the input for gnuplot for a 2D plot\n"
+		;
+		
 	static const char *help_str =
 		" -h          print this help\n"
 		" -H          print just the switches\n"
@@ -102,11 +113,21 @@ static void
 example (void)
 {
 	printf ("\n"
-		"quick example: %s %s\n"
+		"quick example 1: %s %s\n"
 		"%s"
 		, proginfo_name()
 		, example_options
-		, example_str);
+		, example_str
+		);
+		
+	printf ("\n"
+		"quick example 2: %s %s\n"
+		"%s"
+		, proginfo_name()
+		, example_options2
+		, example_str2
+		);
+				
 	return;
 }
 
