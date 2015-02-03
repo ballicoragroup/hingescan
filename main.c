@@ -19,7 +19,7 @@ static void gnuplot_out (const char *name_gp, const char *matrixname, int xfrom,
 //static void mod2_ALLcoord (const struct model *m, struct coordinates *c, int from, int to);
 
 static void	findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, 
-					int botwindow, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf, const char *matrixname );
+					int botwindow, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf, const char *matrixname, const char *gnuplotfilename);
 
 /*
 |
@@ -31,20 +31,20 @@ static void	findhinges (bool_t isquiet, struct model *model_a, struct model *mod
 
 const char *license_str = "\n"
 "   Copyright (c) 2014 Miguel A. Ballicora\n"
-"   Rmsdscan is program for detecting hinges in protein structures\n"
+"   Hingescan is program for detecting hinges in protein structures\n"
 "\n"
-"   Rmsdscan is free software: you can redistribute it and/or modify\n"
+"   Hingescan is free software: you can redistribute it and/or modify\n"
 "   it under the terms of the GNU General Public License as published by\n"
 "   the Free Software Foundation, either version 3 of the License, or\n"
 "   (at your option) any later version.\n"
 "\n"
-"   Rmsdscan is distributed in the hope that it will be useful,\n"
+"   Hingescan is distributed in the hope that it will be useful,\n"
 "   but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
 "   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
 "   GNU General Public License for more details.\n"
 "\n"
 "   You should have received a copy of the GNU General Public License\n"
-"   along with Rmsdscan.  If not, see <http://www.gnu.org/licenses/>.\n"
+"   along with Hingescan.  If not, see <http://www.gnu.org/licenses/>.\n"
 ;
 
 static void parameter_error(void);
@@ -66,7 +66,7 @@ static void usage (void);
 		"-a file1.pdb -b file2.pdb -w 21 -o out.csv";
 
 	const char *example_options2 = 
-		"-a file1.pdb -b file2.pdb -w 3 -W 21 -o out.txt";
+		"-a file1.pdb -b file2.pdb -w 3 -W 21 -o out.txt -g gp.plt";
 		
 	static const char *example_str =
 		"  - Processes file1.pdb and file2.pdb with a window size of 21 residues\n"
@@ -94,6 +94,7 @@ static void usage (void);
 		" -a <file>   first input file in pdb format\n"
 		" -b <file>   second input file in pdb format\n"
 		" -o <file>   output file (text format), goes to the screen if not present\n"
+		" -g <file>   output gnuplot 4.2 format, if -W switch is provided\n"
 		"\n"
 		;
 
@@ -103,7 +104,7 @@ static void usage (void);
 	/*	 ....5....|....5....|....5....|....5....|....5....|....5....|....5....|....5....|*/
 		
 
-const char *OPTION_LIST = "hHvLqa:b:o:w:W:Z:c";
+const char *OPTION_LIST = "hHvLqa:b:o:w:W:Z:cg:";
 
 //=============================================================================
 
@@ -161,6 +162,7 @@ int main(int argc, char *argv[])
 	const char *inputa = "";
 	const char *inputb = "";
 	const char *textstr= "";
+	const char *gnuplotfilename= "";	
 	const char *inputf;
 
 	int op = 0;
@@ -179,6 +181,7 @@ int main(int argc, char *argv[])
 	inputa       = NULL;
 	inputb       = NULL;
 	textstr      = NULL;
+	gnuplotfilename = NULL;
 	corrected    = FALSE;
 	
 	while (END_OF_OPTIONS != (op = options (argc, argv, OPTION_LIST))) {
@@ -197,6 +200,8 @@ int main(int argc, char *argv[])
 						break;
 			case 'o': 	textstr = opt_arg;
 						break;
+			case 'g': 	gnuplotfilename = opt_arg;
+						break;						
 			case 'w': 	if (1 != sscanf(opt_arg,"%d", &window) || window < 0) {
 							fprintf(stderr, "wrong simulation parameter\n");
 							exit(EXIT_FAILURE);
@@ -291,10 +296,10 @@ int main(int argc, char *argv[])
 		printf ("output to = %s\n",textstr==NULL? "stdout": textstr);
 
 	if (NULL != textstr && NULL != (outf = fopen(textstr, "w"))) {
-		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, autoz, topz, outf, textstr);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, autoz, topz, outf, textstr, gnuplotfilename);
 		fclose(outf);
 	} else {
-		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, autoz, topz, stdout, textstr);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, autoz, topz, stdout, textstr, gnuplotfilename);
 	}
 	
     return EXIT_SUCCESS;
@@ -386,7 +391,7 @@ static void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from
 
 static void
 findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow
-			, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf, const char *textstr)
+			, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf, const char *textstr, const char *gnuplotfilename)
 {
 	int reference_window;
 	double rmsd;
@@ -511,24 +516,26 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 		printf ("Maximum Hinge Score: %lf\n", zmax);
 	}				
 	
-	gnuplot_out ("gp.plt", textstr, shift, SCA_all.n+shift-1, botwindow, topwindow, auto_zscale? zmax: topz);
+	if (gnuplotfilename != NULL)
+		gnuplot_out (gnuplotfilename, textstr, shift, SCA_all.n+shift-1, botwindow, topwindow, auto_zscale? zmax: topz);
 
 }
 
 
 
-static const char *block1[9] =
+static const char *block1[2] =
 {"reset"
 ,"set terminal svg"
-,"set output 'out.svg'"
-,"unset key"
+};
+
+static const char *block2[9] =
+{"unset key"
 ,""
 ,"set style line 11 lc rgb '#808080' lt 1"
 ,"set border 3 front ls 11"
 ,"set tics nomirror out scale 0.75"
 ,NULL
 };
-
 
 static const char *block3[7] = 
 {"set xlabel 'Residue'"
@@ -597,6 +604,13 @@ gnuplot_out (const char *name_gp, const char *matrixname, int xfrom, int xto, in
 		int i;
 
 		s = block1;			
+		for (i = 0; s[i] != NULL; i++) {
+			fprintf (fi, "%s\n", s[i]);
+		}
+
+		fprintf (fi, "set output '%s%s'\n",matrixname,".svg");
+
+		s = block2;			
 		for (i = 0; s[i] != NULL; i++) {
 			fprintf (fi, "%s\n", s[i]);
 		}
