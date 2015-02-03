@@ -11,7 +11,7 @@
 #include "proginfo.h"
 
 static void coord_extract (const struct coordinates *c, struct coordinates *o, int from, int to);
-static void gnuplot_out (const char *name_gp, int xfrom, int xto, int wfrom, int wto, double topz);
+static void gnuplot_out (const char *name_gp, const char *matrixname, int xfrom, int xto, int wfrom, int wto, double topz);
 
 //-----------------------------------------------------------------------------
 
@@ -19,7 +19,7 @@ static void gnuplot_out (const char *name_gp, int xfrom, int xto, int wfrom, int
 //static void mod2_ALLcoord (const struct model *m, struct coordinates *c, int from, int to);
 
 static void	findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, 
-					int botwindow, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf );
+					int botwindow, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf, const char *matrixname );
 
 /*
 |
@@ -291,10 +291,10 @@ int main(int argc, char *argv[])
 		printf ("output to = %s\n",textstr==NULL? "stdout": textstr);
 
 	if (NULL != textstr && NULL != (outf = fopen(textstr, "w"))) {
-		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, autoz, topz, outf);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, autoz, topz, outf, textstr);
 		fclose(outf);
 	} else {
-		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, autoz, topz, stdout);
+		findhinges (QUIET_MODE, &MIA, &MIB, window, topwindow, corrected, autoz, topz, stdout, textstr);
 	}
 	
     return EXIT_SUCCESS;
@@ -385,7 +385,8 @@ static void mod2_ALLcoord(const struct model *m, struct coordinates *c, int from
 //==================================================================================
 
 static void
-findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf)
+findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int botwindow
+			, int topwindow, bool_t corrected, bool_t autoz, double topz, FILE *outf, const char *textstr)
 {
 	int reference_window;
 	double rmsd;
@@ -510,7 +511,7 @@ findhinges (bool_t isquiet, struct model *model_a, struct model *model_b, int bo
 		printf ("Maximum Hinge Score: %lf\n", zmax);
 	}				
 	
-	gnuplot_out ("gp.plt", shift, SCA_all.n+shift-1, botwindow, topwindow, auto_zscale? zmax: topz);
+	gnuplot_out ("gp.plt", textstr, shift, SCA_all.n+shift-1, botwindow, topwindow, auto_zscale? zmax: topz);
 
 }
 
@@ -587,7 +588,7 @@ static const char *palette[37] =
 
 
 static void
-gnuplot_out (const char *name_gp, int xfrom, int xto, int wfrom, int wto, double topz)
+gnuplot_out (const char *name_gp, const char *matrixname, int xfrom, int xto, int wfrom, int wto, double topz)
 {
 	FILE *fi;
 	if (NULL != (fi = fopen(name_gp, "w"))) {
@@ -620,7 +621,7 @@ gnuplot_out (const char *name_gp, int xfrom, int xto, int wfrom, int wto, double
 			fprintf (fi, "%s\n", s[i]);
 		}
 
-		fprintf (fi,"plot 'out.txt' u (($1+(%d))/1.0):(%d+2*($2)):($3/1000.0) matrix with image\n",xfrom,wfrom);
+		fprintf (fi,"plot '%s' u (($1+(%d))/1.0):(%d+2*($2)):($3/1000.0) matrix with image\n",matrixname, xfrom,wfrom);
 		
 		fclose(fi);
 	} else {
