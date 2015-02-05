@@ -30,7 +30,7 @@ static void	findhinges (bool_t isquiet, struct model *model_a, struct model *mod
 #include "myopt.h"
 
 const char *license_str = "\n"
-"   Copyright (c) 2014 Miguel A. Ballicora\n"
+"   Copyright (c) 2015 Miguel A. Ballicora\n"
 "   Hingescan is program for detecting hinges in protein structures\n"
 "\n"
 "   Hingescan is free software: you can redistribute it and/or modify\n"
