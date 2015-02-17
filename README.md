@@ -1,30 +1,44 @@
 # hingescan
 
-Hingescan is program for detecting hinges in protein structures
+Hingescan is program for detecting hinges in protein structures.
 Copyright 2015 Miguel A. Ballicora
+
+## Compilation and Installation in GNU/Linux
+
+type
+
+`make`
+
+to generate the program and then
+
+`make install`
+
+or `sudo make install` in Ubuntu. The program is very portable, so it should be very easy to compile in other systems.
+
+## Usage
 
 As an example, a typical use would be
 
-hingescan -a file1.pdb -b file2.pdb -w 3 -W 25 -o output.txt -g gnuplotfile.plt
+`hingescan -a file1.pdb -b file2.pdb -w 3 -W 25 -o output.txt -g gnuplotfile.plt`
 
-In this case, file1.pdb and file2.pdb will be compared with windows from 3 to 25 and the output, in matriz form will be in output.txt
+In this case, `file1.pdb` and `file2.pdb` will be compared with windows from 3 to 25 and the output, in matrix form will be in `output.txt`
 To plot this information in a "heat map", anothe file will be saved (gnuplotfile.plt) that could be the input to be used with gnuplot.
-Then, after the previous command was executed, the following (gnuplot plot needs to be already installed):
+Then, after the previous command was executed, the following (gnuplot needs to be already installed):
 
-gnuplot gnuplotfile.plt
+`gnuplot gnuplotfile.plt`
 
-will yield the file output.txt.svg, which can be converted in linux to other graph formats. For instance with
+will yield the file `output.txt.svg`, which can be converted in linux to other graph formats. For instance with
 
-convert output.txt.svg output.jpg
+`convert output.txt.svg output.jpg`
 
 Another alternative is to produce hingescan scores with a give window. For instance
 
-hingescan -a file1.pdb -b file2.pdb -w 9 -o out.csv
+`hingescan -a file1.pdb -b file2.pdb -w 9 -o out.csv`
 
-will output a comma separated value file (out.csv) that could be open with any spreadsheet program. The window size is 9.
+will output a comma separated value file (`out.csv`) that could be open with any spreadsheet program. The window size is 9.
 
 There is a further help if hingescan is executed with the switch -h in the command line. That is:
-
+```
 Program to detect hinges by comparing two conformers
 
 quick example 1: hingescan -a file1.pdb -b file2.pdb -w 21 -o out.csv
@@ -55,6 +69,6 @@ usage: hingescan [-OPTION]
 
 Copyright (c) 2014 Miguel A. Ballicora
 There is NO WARRANTY of any kind
-
+```
 
 
